@@ -12,26 +12,43 @@
 */
 
 
+// Teensy LC LED
+#define LED_MAIN  13
+
+
+// The pin used for poll-out.
+#define USB_POLL_OUT  14
+
+
 // Measures the hosts's poll time and blinks accordingly.
 // I.e. 1x blink = 1ms, 8x blink = 8ms
 // If it fails (time < 1ms like in Linux) then false is returned.
 bool measurePollTime() {
   // Measure time
-  Joystick.send_now();
+  for(int i=0; i<10; i++)
+    Joystick.send_now(); 
   unsigned long startTime = micros();
   Joystick.send_now();
   unsigned long endTime = micros();
   long diff = endTime - startTime;
   diff = (diff+500l)/1000l; // round number
-  if(diff == 0)
+  if(diff == 0 || diff > 8) {
+    // Do fast blink during 5x for error
+    for(int i=0; i<5; i++) {
+      digitalWrite(LED_MAIN, true);
+      delay(40);
+      digitalWrite(LED_MAIN, false);    
+      delay(40);
+    }
     return false; // Measurement failed.
-    
+  }
+  
   // Blink LED (1x for each millisecond)
   for(int i=0; i<diff; i++) {
-    digitalWrite(13, true);
     delay(300);
-    digitalWrite(13, false);
+    digitalWrite(LED_MAIN, true);
     delay(300);
+    digitalWrite(LED_MAIN, false);
   }
 
   // Measurement succeeded
@@ -40,8 +57,8 @@ bool measurePollTime() {
 
 
 void setup() {
-  pinMode(13, OUTPUT);
-  pinMode(14, OUTPUT);
+  pinMode(LED_MAIN, OUTPUT);
+  pinMode(USB_POLL_OUT, OUTPUT);
   pinMode(0, INPUT_PULLUP);
   pinMode(1, INPUT_PULLUP);
   pinMode(2, OUTPUT);
@@ -53,6 +70,8 @@ void setup() {
   delay(2000);
   for(int i=0; i<1000; i++)
     Joystick.send_now();
+  // Measure host's poll time
+  measurePollTime();
 }
 
 
@@ -65,20 +84,16 @@ void loop() {
 #endif
 
 #if 01
-bool out = false;
-bool pollTimeMeasured = false;
-void loop() {
-  // Check if we would like to measure/indicate the polling time
-  if(!pollTimeMeasured) {
-    // Measure
-    pollTimeMeasured = measurePollTime();
-    return;
-  }
 
+
+void loop() {
   // Normal mode: Check for button presses
+  static bool out = false;
   out = !out;
-  digitalWrite(14, out);
+  digitalWrite(USB_POLL_OUT, out);
+  
 #if 01
+  Joystick.X(analogRead(0));
   Joystick.button(1, !digitalRead(1));
   //Joystick.button(2, !digitalRead(1));
   //Joystick.button(3, !digitalRead(1));
