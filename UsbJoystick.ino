@@ -1,3 +1,23 @@
+#if 0
+// For testing
+
+
+void setup() {
+  pinMode(1, INPUT_PULLUP);
+  Joystick.useManualSend(true);
+}
+
+void loop() {
+  Joystick.button(1, !digitalRead(1));
+
+  Joystick.send_now();
+}
+
+
+#else
+
+
+
 /* 
    Basic USB Joystick Example
    Teensy becomes a USB joystick
@@ -10,7 +30,7 @@
 
    This example code is in the public domain.
 */
-
+#include <usb_dev.h>
 
 // Teensy LC LED
 #define LED_MAIN  13
@@ -59,6 +79,7 @@ bool measurePollTime() {
 void setup() {
   pinMode(LED_MAIN, OUTPUT);
   pinMode(USB_POLL_OUT, OUTPUT);
+  pinMode(15, OUTPUT);
   pinMode(0, INPUT_PULLUP);
   pinMode(1, INPUT_PULLUP);
   pinMode(2, OUTPUT);
@@ -66,12 +87,14 @@ void setup() {
   Joystick.useManualSend(true);
   //noInterrupts();
 
+#if 0
   // Wait a few polls  
   delay(2000);
   for(int i=0; i<1000; i++)
     Joystick.send_now();
   // Measure host's poll time
   measurePollTime();
+ #endif
 }
 
 
@@ -86,20 +109,31 @@ void loop() {
 #if 01
 
 
+
+
 void loop() {
   // Normal mode: Check for button presses
   static bool out = false;
+
+Joystick.useManualSend(true);
+
   out = !out;
   digitalWrite(USB_POLL_OUT, out);
+
   
+        
 #if 01
-  Joystick.X(analogRead(0));
+  //Joystick.X(analogRead(0));
   Joystick.button(1, !digitalRead(1));
+  //digitalWrite(15, digitalRead(1));
   //Joystick.button(2, !digitalRead(1));
   //Joystick.button(3, !digitalRead(1));
   //Joystick.button(4, !digitalRead(1));
 #endif
+  
+  //digitalWrite(USB_POLL_OUT, true);
   Joystick.send_now();
+  //digitalWrite(USB_POLL_OUT, false);
 }
 #endif
 
@@ -138,4 +172,6 @@ void loop() {
  
  #endif
 }
+#endif
+
 #endif
