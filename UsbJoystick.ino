@@ -13,6 +13,34 @@ The features are:
 #define USB_POLL_OUT  14
 
 
+// Handles the Output and LED to indicate the USB polling rate.
+void indicateUsbPollRate() {
+    // USB_POLL_OUT:
+    static bool usbPollOut = false;
+    usbPollOut = !usbPollOut;
+    digitalWrite(USB_POLL_OUT, usbPollOut);
+
+    // Main LED (poll time / 1000)
+    static bool mainLedOut = false;
+    static int mainLedCounter = 0;
+    mainLedCounter--;
+    if(mainLedCounter < 0) {
+      // toggle main LED
+      mainLedOut = !mainLedOut;
+      digitalWrite(LED_MAIN, mainLedOut);
+      mainLedCounter = 1000;
+    }
+}
+
+
+// Reads the joystick buttons and axis.
+// Handles debouncing and minimum press time.
+void handleJoystick() {
+    Joystick.button(1, !digitalRead(1));
+}
+
+
+// SETUP
 void setup() {
   pinMode(1, INPUT_PULLUP);
   pinMode(LED_MAIN, OUTPUT);
@@ -20,27 +48,24 @@ void setup() {
   Joystick.useManualSend(true);
 }
 
+
+
+// MAIN LOOP
 void loop() {
-  // Handle poll interval output.
-  // USB_POLL_OUT:
-  static bool usbPollOut = false;
-  usbPollOut = !usbPollOut;
-  digitalWrite(USB_POLL_OUT, usbPollOut);
-  // Main LED (poll time / 1000)
-  static bool mainLedOut = false;
-  static int mainLedCounter = 0;
-  mainLedCounter--;
-  if(mainLedCounter < 0) {
-    // toggle main LED
-    mainLedOut = !mainLedOut;
-    digitalWrite(LED_MAIN, mainLedOut);
-    mainLedCounter = 1000;
+
+  // Loop forever
+  while(true) {
+    
+    // Handle poll interval output.
+    indicateUsbPollRate();
+
+    // Handle joystick buttons and axis
+    handleJoystick();
+
+    // Prepare USB packet andwait for poll.
+    Joystick.send_now();
+    
   }
-
-  // Handle joystick buttons and axis
-  Joystick.button(1, !digitalRead(1));
-
-  Joystick.send_now();
 }
 
 
