@@ -56,6 +56,22 @@ Debouncing and minimum press time uses the same algorithm. It extends the simple
 3. Goto 1
 
 
+## Additional Delay
+
+If we would simply wait for an USB poll and then right after that read the joystick values this would introduce a delay of 1x the polling rate.
+I.e. if you would press a button just after the sampling it would require once the poll time until it is sampled the next time + the usb poll time.
+E.g. for a 1ms USB poll time this would result in 2ms.
+
+In order to reduce this we move the sampling by 0.8ms after the last USB poll.
+This will end up in 1ms + 0.2ms = 1.2ms total max lag.
+
+There are problems with this approach:
+- The value is helpful only for 1ms poll time. If e.g. 8ms are used it would have to be changed to 7.8ms (instead of 0.8ms). -> I don't care: the UsbJoystick is anyway optimized for 1ms poll time. If another poll time is used by the host this is indicated (see [Host's Poll Time](#host-s-poll-time)).
+- If the algorithm to read the button and axis values would take longer than the remaining 0.2ms we would miss the USB poll interval and the resulting lag would be even longer. Therefore there is a check done in SW that the execution of reading buttons and axis values is short enough.
+If not: the main LED will start to blink fast.
+
+
+
 
 ## Host's Poll Time
 

@@ -1,21 +1,53 @@
-#if 0
-// For testing
+/* 
+USB Joystick using a Teensy LC board.
+The features are:
+- Requested 1ms USB poll time
+- Additional delay of max. (??)
+- Indication of the real used USB poll time
+*/
+
+// Teensy LC main LED
+#define LED_MAIN  13
+
+// The pin used for poll-out.
+#define USB_POLL_OUT  14
 
 
 void setup() {
   pinMode(1, INPUT_PULLUP);
+  pinMode(LED_MAIN, OUTPUT);
+  pinMode(USB_POLL_OUT, OUTPUT);
   Joystick.useManualSend(true);
 }
 
 void loop() {
+  // Handle poll interval output.
+  // USB_POLL_OUT:
+  static bool usbPollOut = false;
+  usbPollOut = !usbPollOut;
+  digitalWrite(USB_POLL_OUT, usbPollOut);
+  // Main LED (poll time / 1000)
+  static bool mainLedOut = false;
+  static int mainLedCounter = 0;
+  mainLedCounter--;
+  if(mainLedCounter < 0) {
+    // toggle main LED
+    mainLedOut = !mainLedOut;
+    digitalWrite(LED_MAIN, mainLedOut);
+    mainLedCounter = 1000;
+  }
+
+  // Handle joystick buttons and axis
   Joystick.button(1, !digitalRead(1));
 
   Joystick.send_now();
 }
 
 
-#else
 
+
+
+#if 0
 
 
 /* 
