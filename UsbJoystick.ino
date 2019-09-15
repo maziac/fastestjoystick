@@ -22,7 +22,7 @@ The features are:
 #define COUNT_BUTTONS   8
 
 // The deounce and minimal press- and release time of a button (in ms).
-#define MIN_PRESS_TIME 25
+#define MIN_PRESS_TIME 1
 
 
 // Timer values for all joystick buttons
@@ -76,6 +76,11 @@ void handleJoystick() {
 
     // Handle button press/release
     Joystick.button(1+i, buttonValue);  // Buttons start at 1 (not 0)
+
+    // Test
+    if(i == 0) {
+      digitalWrite(14, buttonValue);
+    }
   }
   
 }
@@ -95,6 +100,11 @@ void setup() {
 
   // Initialize USB
   Joystick.useManualSend(true);
+
+
+
+        pinMode(14,OUTPUT);
+
 }
 
 
@@ -108,12 +118,15 @@ void loop() {
     // Handle poll interval output.
     indicateUsbPollRate();
 
+    delayMicroseconds(800);
+
     // Handle joystick buttons and axis
     handleJoystick();
 
     // Prepare USB packet andwait for poll.
     Joystick.send_now();
     
+      digitalWrite(14, false);
   }
 }
 
