@@ -6,11 +6,30 @@ The features are:
 - Indication of the real used USB poll time
 */
 
+#include <usb_desc.h>
+
+
 // Teensy LC main LED
 #define LED_MAIN  13
 
 // The pin used for poll-out.
-#define USB_POLL_OUT  14
+#define USB_POLL_OUT  0
+
+// Buttons start at this digital pin
+#define BUTTON_PIN_OFFS 1
+
+// Number of total joystick buttons.
+#define COUNT_BUTTONS   8
+
+// The deounce and minimal press- and release time of a button (in ms).
+#define MIN_PRESS_TIME 25
+
+
+// Timer values for all joystick buttons
+uint8_t buttonTimers[COUNT_BUTTONS] = {};
+
+// The (previous) joystick button values.
+bool prevButtonValue[COUNT_BUTTONS];
 
 
 // Handles the Output and LED to indicate the USB polling rate.
@@ -36,15 +55,45 @@ void indicateUsbPollRate() {
 // Reads the joystick buttons and axis.
 // Handles debouncing and minimum press time.
 void handleJoystick() {
-    Joystick.button(1, !digitalRead(1));
+  // Go through all buttons
+  for(int i=0; i<COUNT_BUTTONS; i++) {
+    // Check if button timer is 0
+    if(buttonTimers[i] > JOYSTICK_INTERVAL) {
+      // Decrease timer
+      buttonTimers[i] -= JOYSTICK_INTERVAL;
+      continue;
+    }
+
+    // Timer is zero (i.e. below JOYSTICK_INTERVAL). Now check if the button state has changed.
+    bool buttonValue = (digitalRead(BUTTON_PIN_OFFS+i) == LOW); // Active LOW
+    if(buttonValue == prevButtonValue[i])
+      continue; // Not changed
+      
+    // Button value has changed
+    prevButtonValue[i] = buttonValue;
+    // Restart timer
+    buttonTimers[i] = MIN_PRESS_TIME;
+
+    // Handle button press/release
+    Joystick.button(1+i, buttonValue);  // Buttons start at 1 (not 0)
+  }
+  
 }
 
 
 // SETUP
 void setup() {
-  pinMode(1, INPUT_PULLUP);
+  // Initialize pins
   pinMode(LED_MAIN, OUTPUT);
   pinMode(USB_POLL_OUT, OUTPUT);
+
+  // Initialize buttons
+  for(int i=0; i<COUNT_BUTTONS; i++) {
+    pinMode(BUTTON_PIN_OFFS+i, INPUT_PULLUP);
+    prevButtonValue[i] = false;
+  }
+
+  // Initialize USB
   Joystick.useManualSend(true);
 }
 
