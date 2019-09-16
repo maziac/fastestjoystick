@@ -16,24 +16,25 @@ The features are:
 #define USB_POLL_OUT  0
 
 // Buttons start at this digital pin
-#define BUTTONS_PIN_OFFS 1
+#define BUTTONS_PIN_OFFS 0    // Digital pin 0 is button 0
 
 // Number of total joystick buttons.
-#define COUNT_BUTTONS   8
+#define COUNT_BUTTONS   13    // Pins 0-12
 
 // Axes start at this digital pin
-#define AXES_PIN_OFFS 1
+#define AXES_PIN_OFFS 20  // Pins 20-23
 
 // Number of different joystick axes.
 #define COUNT_AXES   2
 
 // The deounce and minimal press- and release time of a button (in ms).
-#define MIN_PRESS_TIME 5
+#define MIN_PRESS_TIME 5000
 
 
 
 // Timer values for all joystick buttons
-uint8_t buttonTimers[COUNT_BUTTONS] = {};
+//uint8_t
+int buttonTimers[COUNT_BUTTONS] = {};
 
 // The (previous) joystick button values.
 //bool prevButtonValue[COUNT_BUTTONS];
@@ -41,12 +42,16 @@ uint8_t buttonTimers[COUNT_BUTTONS] = {};
 uint32_t prevButtonsValue = 0;  
 
 // Timer values for the axes.
-uint8_t axesTimers[COUNT_AXES] = {};
+//uint8_t
+int axesTimers[COUNT_AXES] = {};
 
 // The (previous) joystick button values.
 // Values: 0=left/down, 512=no direction, 1023=right/up
 int prevAxesValue[COUNT_AXES];
 
+// Either button for low (0-512) was the last activity: 0.
+// Or button for high (512-1023) was the last activity: 1.
+int lastAxesActivity[COUNT_AXES] = {};
 
 
 
@@ -76,9 +81,8 @@ void handleJoystick() {
     
   // Go through all buttons
   uint32_t mask = 0b00000001;
-  for(int i=0; i<3; i++) {
-   Serial.print("i=");Serial.println(i);
-
+  for(int i=0; i<COUNT_BUTTONS; i++) {
+    
     // Check if button timer is 0
     if(buttonTimers[i] > JOYSTICK_INTERVAL) {
       // Decrease timer
@@ -105,26 +109,57 @@ void handleJoystick() {
   usb_joystick_data[0] = prevButtonsValue;
 
   // Go through all axes
-  for(int i=0; i<COUNT_AXES; i++) {
+  for(int i=0; i<1; i++) {
+    // Read buttons for the axis of the joystick
+    int axisLow = (digitalRead(AXES_PIN_OFFS+2*i) == LOW) ? 0 : 512; // Active LOW
+    int axisHigh = (digitalRead(AXES_PIN_OFFS+2*i+1) == LOW) ? 1023 : 512; // Active LOW
+    
     // Check if axis timer is 0
     if(axesTimers[i] > JOYSTICK_INTERVAL) {
       // Decrease timer
       axesTimers[i] -= JOYSTICK_INTERVAL;
-      continue;
+      // Check if other direction is pressed
+      if(lastAxesActivity[i]) {
+        // high (512-1023). Check if other button is pressed.
+        if(axisLow != 512)
+          goto L_JOY_AXIS_MOVED;
+      }
+      else  {
+        // low (0-512). Check if other button is pressed.
+        if(axisHigh != 512)
+          goto L_JOY_AXIS_MOVED;
+      }
     }
-
-    // Timer is zero (i.e. below JOYSTICK_INTERVAL). Now check if the button state has changed.
-    int axisValue = (digitalRead(AXES_PIN_OFFS+i) == LOW); // Active LOW
-    if(axisValue == prevAxesValue[i])
-      continue; // Not changed
+    else {
+      // Timer is zero (i.e. below JOYSTICK_INTERVAL). Now check if the button state has changed.
+L_JOY_AXIS_MOVED:
+      int axisValue = 512;
+      if(axisLow != 512) {
+        lastAxesActivity[i] = 0;
+        axisValue = axisLow;
+      }
+      if(axisHigh != 512) {
+        lastAxesActivity[i] = 1;
+        axisValue = axisHigh;
+      }
+  
+//usb_joystick_data[1] = (usb_joystick_data[1] & 0xFFFFC00F) | (val << 4);
       
-    // Button value has changed
-    prevAxesValue[i] = axisValue;
-    // Restart timer
-    axesTimers[i] = MIN_PRESS_TIME;
+       
+   
+      if(axisValue != prevAxesValue[i]) {
+        // Button value has changed
+        prevAxesValue[i] = axisValue;
+        // Restart timer
+        axesTimers[i] = MIN_PRESS_TIME;
+    
+        // Handle button press/release
+       Joystick.useManualSend(true);
+       Joystick.X(axisValue);
 
-    // Handle button press/release
-  //  Joystick.button(1+i, buttonValue);  // Buttons start at 1 (not 0)
+
+      }
+    }
   }
 }
 
@@ -140,6 +175,9 @@ void setup() {
   // Initialize buttons
   for(int i=0; i<COUNT_BUTTONS; i++) {
     pinMode(BUTTONS_PIN_OFFS+i, INPUT_PULLUP);
+  }
+  for(int i=0; i<COUNT_AXES; i++) {
+    pinMode(AXES_PIN_OFFS+i, INPUT_PULLUP);
   }
 
 
