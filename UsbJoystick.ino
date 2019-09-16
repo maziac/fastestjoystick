@@ -75,10 +75,9 @@ void indicateUsbPollRate() {
 }
 
 
-// Reads the joystick buttons and axis.
+// Reads the joystick buttons.
 // Handles debouncing and minimum press time.
-void handleJoystick() {
-    
+void handleButtons() {
   // Go through all buttons
   uint32_t mask = 0b00000001;
   for(int i=0; i<COUNT_BUTTONS; i++) {
@@ -106,8 +105,13 @@ void handleJoystick() {
     mask <<= 1;
   }
   // Set buttons in USB data:
-  usb_joystick_data[0] = prevButtonsValue;
+  usb_joystick_data[0] = prevButtonsValue; 
+}
 
+
+// Reads the joystick axis.
+// Handles debouncing and minimum press time.
+void handleAxes() {
   // Go through all axes
   for(int i=0; i<1; i++) {
     // Read buttons for the axis of the joystick
@@ -161,6 +165,16 @@ L_JOY_AXIS_MOVED:
       }
     }
   }
+}
+
+
+// Reads the joystick buttons and axis.
+// Handles debouncing and minimum press time.
+void handleJoystick() {
+  // Buttons
+  handleButtons();
+  // Axes
+  handleAxes();
 }
 
 
