@@ -24,11 +24,11 @@ The features are:
 // Axes start at this digital pin
 #define AXES_PIN_OFFS 20  // Pins 20-23
 
-// Number of different joystick axes.
+// Number of different joystick axes. At maximum 2 axes are supported.
 #define COUNT_AXES   2
 
 // The deounce and minimal press- and release time of a button (in ms).
-#define MIN_PRESS_TIME 5000
+#define MIN_PRESS_TIME 1000
 
 
 
@@ -80,6 +80,7 @@ void indicateUsbPollRate() {
 void handleButtons() {
   // Go through all buttons
   uint32_t mask = 0b00000001;
+ // uint8_t input = PORTA;
   for(int i=0; i<COUNT_BUTTONS; i++) {
     
     // Check if button timer is 0
@@ -112,8 +113,10 @@ void handleButtons() {
 // Reads the joystick axis.
 // Handles debouncing and minimum press time.
 void handleAxes() {
+  int shift = 4;
+  uint32_t mask = ~0xFFFFC00F;
   // Go through all axes
-  for(int i=0; i<1; i++) {
+  for(int i=0; i<COUNT_AXES; i++) {
     // Read buttons for the axis of the joystick
     int axisLow = (digitalRead(AXES_PIN_OFFS+2*i) == LOW) ? 0 : 512; // Active LOW
     int axisHigh = (digitalRead(AXES_PIN_OFFS+2*i+1) == LOW) ? 1023 : 512; // Active LOW
@@ -146,24 +149,22 @@ L_JOY_AXIS_MOVED:
         lastAxesActivity[i] = 1;
         axisValue = axisHigh;
       }
-  
-//usb_joystick_data[1] = (usb_joystick_data[1] & 0xFFFFC00F) | (val << 4);
-      
-       
-   
+
+      // Check for change
       if(axisValue != prevAxesValue[i]) {
         // Button value has changed
         prevAxesValue[i] = axisValue;
         // Restart timer
         axesTimers[i] = MIN_PRESS_TIME;
     
-        // Handle button press/release
-       Joystick.useManualSend(true);
-       Joystick.X(axisValue);
-
-
+        // Handle axes movement
+        usb_joystick_data[1] = (usb_joystick_data[1] & (~mask)) | (axisValue << shift);
       }
     }
+
+    // Next
+    shift += 10;
+    mask <<= 10;
   }
 }
 
@@ -190,7 +191,7 @@ void setup() {
   for(int i=0; i<COUNT_BUTTONS; i++) {
     pinMode(BUTTONS_PIN_OFFS+i, INPUT_PULLUP);
   }
-  for(int i=0; i<COUNT_AXES; i++) {
+  for(int i=0; i<2*COUNT_AXES; i++) {
     pinMode(AXES_PIN_OFFS+i, INPUT_PULLUP);
   }
 
@@ -215,7 +216,7 @@ void loop() {
     // Handle joystick buttons and axis
     handleJoystick();
 
-    // Prepare USB packet andwait for poll.
+    // Prepare USB packet and wait for poll.
     //Joystick.send_now();
     usb_joystick_send();
     
