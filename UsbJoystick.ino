@@ -16,20 +16,38 @@ The features are:
 #define USB_POLL_OUT  0
 
 // Buttons start at this digital pin
-#define BUTTON_PIN_OFFS 1
+#define BUTTONS_PIN_OFFS 1
 
 // Number of total joystick buttons.
 #define COUNT_BUTTONS   8
 
+// Axes start at this digital pin
+#define AXES_PIN_OFFS 1
+
+// Number of different joystick axes.
+#define COUNT_AXES   2
+
 // The deounce and minimal press- and release time of a button (in ms).
-#define MIN_PRESS_TIME 1
+#define MIN_PRESS_TIME 5
+
 
 
 // Timer values for all joystick buttons
 uint8_t buttonTimers[COUNT_BUTTONS] = {};
 
 // The (previous) joystick button values.
-bool prevButtonValue[COUNT_BUTTONS];
+//bool prevButtonValue[COUNT_BUTTONS];
+// The (previous) joystick button values. Bit map. 1=pressed.
+uint32_t prevButtonsValue = 0;  
+
+// Timer values for the axes.
+uint8_t axesTimers[COUNT_AXES] = {};
+
+// The (previous) joystick button values.
+// Values: 0=left/down, 512=no direction, 1023=right/up
+int prevAxesValue[COUNT_AXES];
+
+
 
 
 // Handles the Output and LED to indicate the USB polling rate.
@@ -55,37 +73,64 @@ void indicateUsbPollRate() {
 // Reads the joystick buttons and axis.
 // Handles debouncing and minimum press time.
 void handleJoystick() {
+    
   // Go through all buttons
-  for(int i=0; i<COUNT_BUTTONS; i++) {
+  uint32_t mask = 0b00000001;
+  for(int i=0; i<3; i++) {
+   Serial.print("i=");Serial.println(i);
+
     // Check if button timer is 0
     if(buttonTimers[i] > JOYSTICK_INTERVAL) {
       // Decrease timer
       buttonTimers[i] -= JOYSTICK_INTERVAL;
+    }
+    else {
+      // Timer is zero (i.e. below JOYSTICK_INTERVAL). Now check if the button state has changed.
+      uint32_t buttonValue = (digitalRead(BUTTONS_PIN_OFFS+i) == LOW) ? 1 : 0; // Active LOW
+      buttonValue <<= i;
+      if(buttonValue != (prevButtonsValue & mask)) {
+        // Button value has changed
+        prevButtonsValue &= ~mask;  // Clear bit
+        prevButtonsValue |= buttonValue;  // Set bit (if set)
+        
+        // Restart timer
+        buttonTimers[i] = MIN_PRESS_TIME;
+      }
+    }
+    
+    // Next
+    mask <<= 1;
+  }
+  // Set buttons in USB data:
+  usb_joystick_data[0] = prevButtonsValue;
+
+  // Go through all axes
+  for(int i=0; i<COUNT_AXES; i++) {
+    // Check if axis timer is 0
+    if(axesTimers[i] > JOYSTICK_INTERVAL) {
+      // Decrease timer
+      axesTimers[i] -= JOYSTICK_INTERVAL;
       continue;
     }
 
     // Timer is zero (i.e. below JOYSTICK_INTERVAL). Now check if the button state has changed.
-    bool buttonValue = (digitalRead(BUTTON_PIN_OFFS+i) == LOW); // Active LOW
-    if(buttonValue == prevButtonValue[i])
+    int axisValue = (digitalRead(AXES_PIN_OFFS+i) == LOW); // Active LOW
+    if(axisValue == prevAxesValue[i])
       continue; // Not changed
       
     // Button value has changed
-    prevButtonValue[i] = buttonValue;
+    prevAxesValue[i] = axisValue;
     // Restart timer
-    buttonTimers[i] = MIN_PRESS_TIME;
+    axesTimers[i] = MIN_PRESS_TIME;
 
     // Handle button press/release
-    Joystick.button(1+i, buttonValue);  // Buttons start at 1 (not 0)
-
-    // Test
-    if(i == 0) {
-      digitalWrite(14, buttonValue);
-    }
+  //  Joystick.button(1+i, buttonValue);  // Buttons start at 1 (not 0)
   }
-  
 }
 
 
+
+  
 // SETUP
 void setup() {
   // Initialize pins
@@ -94,13 +139,8 @@ void setup() {
 
   // Initialize buttons
   for(int i=0; i<COUNT_BUTTONS; i++) {
-    pinMode(BUTTON_PIN_OFFS+i, INPUT_PULLUP);
-    prevButtonValue[i] = false;
+    pinMode(BUTTONS_PIN_OFFS+i, INPUT_PULLUP);
   }
-
-  // Initialize USB
-  Joystick.useManualSend(true);
-
 
 
         pinMode(14,OUTPUT);
@@ -124,173 +164,9 @@ void loop() {
     handleJoystick();
 
     // Prepare USB packet andwait for poll.
-    Joystick.send_now();
+    //Joystick.send_now();
+    usb_joystick_send();
     
       digitalWrite(14, false);
   }
 }
-
-
-
-
-
-#if 0
-
-
-/* 
-   Basic USB Joystick Example
-   Teensy becomes a USB joystick
-
-   You must select Joystick from the "Tools > USB Type" menu
-
-   Pushbuttons should be connected to digital pins 0 and 1.
-   Wire each button between the digital pin and ground.
-   Potentiometers should be connected to analog inputs 0 to 1.
-
-   This example code is in the public domain.
-*/
-#include <usb_dev.h>
-
-// Teensy LC LED
-#define LED_MAIN  13
-
-
-// The pin used for poll-out.
-#define USB_POLL_OUT  14
-
-
-// Measures the hosts's poll time and blinks accordingly.
-// I.e. 1x blink = 1ms, 8x blink = 8ms
-// If it fails (time < 1ms like in Linux) then false is returned.
-bool measurePollTime() {
-  // Measure time
-  for(int i=0; i<10; i++)
-    Joystick.send_now(); 
-  unsigned long startTime = micros();
-  Joystick.send_now();
-  unsigned long endTime = micros();
-  long diff = endTime - startTime;
-  diff = (diff+500l)/1000l; // round number
-  if(diff == 0 || diff > 8) {
-    // Do fast blink during 5x for error
-    for(int i=0; i<5; i++) {
-      digitalWrite(LED_MAIN, true);
-      delay(40);
-      digitalWrite(LED_MAIN, false);    
-      delay(40);
-    }
-    return false; // Measurement failed.
-  }
-  
-  // Blink LED (1x for each millisecond)
-  for(int i=0; i<diff; i++) {
-    delay(300);
-    digitalWrite(LED_MAIN, true);
-    delay(300);
-    digitalWrite(LED_MAIN, false);
-  }
-
-  // Measurement succeeded
-  return true;
-}
-
-
-void setup() {
-  pinMode(LED_MAIN, OUTPUT);
-  pinMode(USB_POLL_OUT, OUTPUT);
-  pinMode(15, OUTPUT);
-  pinMode(0, INPUT_PULLUP);
-  pinMode(1, INPUT_PULLUP);
-  pinMode(2, OUTPUT);
-
-  Joystick.useManualSend(true);
-  //noInterrupts();
-
-#if 0
-  // Wait a few polls  
-  delay(2000);
-  for(int i=0; i<1000; i++)
-    Joystick.send_now();
-  // Measure host's poll time
-  measurePollTime();
- #endif
-}
-
-
-#if 0
-void loop() {
-  Joystick.button(1, !digitalRead(1));
-
-  Joystick.send_now();
-}
-#endif
-
-#if 01
-
-
-
-
-void loop() {
-  // Normal mode: Check for button presses
-  static bool out = false;
-
-Joystick.useManualSend(true);
-
-  out = !out;
-  digitalWrite(USB_POLL_OUT, out);
-
-  
-        
-#if 01
-  //Joystick.X(analogRead(0));
-  Joystick.button(1, !digitalRead(1));
-  //digitalWrite(15, digitalRead(1));
-  //Joystick.button(2, !digitalRead(1));
-  //Joystick.button(3, !digitalRead(1));
-  //Joystick.button(4, !digitalRead(1));
-#endif
-  
-  //digitalWrite(USB_POLL_OUT, true);
-  Joystick.send_now();
-  //digitalWrite(USB_POLL_OUT, false);
-}
-#endif
-
-
-
-#if 0
-bool output = false;
-void loop() {
-#if 0
-  output = !output;
-  digitalWrite(2, output);
-  //delay(1000);
-#endif
-
-#if 01
-  // read analog inputs and set X-Y position
-  //Joystick.X(analogRead(0));
-  //Joystick.Y(analogRead(1));
-
-  // read the digital inputs and set the buttons
- // Joystick.button(1, digitalRead(0));
-  Joystick.button(2, !digitalRead(1));
-
-  // a brief delay, so this runs 20 times per second
-  //delay(50);
-
-#if 0
-  delay(1000);
-  Joystick.button(1, false);
-  digitalWrite(13, false);
-  
-  delay(1000);
-  Joystick.button(1, true);
-  digitalWrite(13, true);
- #endif
- 
- #endif
-}
-#endif
-
-#endif
