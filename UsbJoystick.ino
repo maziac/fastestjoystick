@@ -184,6 +184,7 @@ void handleJoystick() {
   
 // SETUP
 void setup() {
+#if 0
   delay(1000);
   Serial.println(F_CPU); 
    
@@ -201,56 +202,45 @@ void setup() {
   for(int i=0; i<2*COUNT_AXES; i++) {
     pinMode(AXES_PIN_OFFS+i, INPUT_PULLUP);
   }
+#endif
 
 
- // Setup timer 2 (8 bit timer) to check that the whole joystick handling is handled
- // completely within 900us (<1ms).
+  // Initialize pins
+  pinMode(14, OUTPUT);
 
-  uint32_t mcg_sc = MCG_SC;
-  int fcrdiv = (MCG_SC >> 1) & 0b0111;
-  Serial.println(fcrdiv);
-  MCG_C1 &= ~ 0b010; // Disable IRCLK
-  MCG_SC = (mcg_sc & (~0b01110)); // 4MHz. | 0b0010;  // Divider = 2 => 2MHz = 0.5us (*2 => 1us)
-  fcrdiv = (MCG_SC >> 1) & 0b0111;
-  Serial.println(fcrdiv);
-  int irclken = (MCG_C1 >> 1) & 0b01; 
-  Serial.println(irclken);
-  MCG_C2 |= 0b001;  // IRCS. fastinternal reference clock enabled
+  // Setup timer
+  MCG_C1 &= ~0b010; // Disable IRCLK
+  MCG_SC &= ~0b01110; // Divider = 1 => 4MHz
+  MCG_C2 |= 0b001;  // IRCS. fast internal reference clock enabled
   
   // Clock source
-  uint32_t sim_sopt2 = SIM_SOPT2;
-  // 11 = MCGIRCLK
-  SIM_SOPT2 = (sim_sopt2 & 0b11111100111111111111111111111111) | 0b00000011000000000000000000000000;
+  SIM_SOPT2 |= 0b00000011000000000000000000000000;  // MCGIRCLK
 
-  
-  // Prescaler: 64 -> resolution 1.333us=4/3us (at F_CPU=48MHz).
+  // Prescaler: 4 -> 4MHz/4 = 1MHz => 1us
   TPM0_SC = 0;
-//  TPM0_SC |= 0b00000101;//10;  // Prescaler :32
-  TPM0_SC |= 0b00000100;  // Prescaler :4 = 1Mhz
-  //FUNKTIOIERT noch nicht!!!!!
+  TPM0_SC |= 0b00000010;  // Prescaler /4 = 1Mhz
   TPM0_SC |= 0b00001000;  // Enable timer
-  TPM0_SC |= FTM_SC_TOF;  // Clear overflow
-
+ 
   MCG_C1 |= 0b010;  // IRCLKEN = enabled
 
-  // Time (900us). When this is reached the overflow flag is set.
-  TPM0_MOD = 1000; // 1000us
+  // When this is reached the overflow flag is set.
+  TPM0_MOD = 1000; // 1000us = 1ms
 
-  Serial.println(TPM0_MOD);
-  
-//TPM0_MOD = 4000; //2*1333;
-
-interrupts();
+  // Loop: toggle a pin each time the timer elapses (overflows)
   bool out = false;
   while(true) {
     TPM0_CNT = 0;  // Start value for timer
-    TPM0_SC |= FTM_SC_TOF;  // Clear pending bits
+    TPM0_SC |= FTM_SC_TOF;  // Clear overflow
+    
     out = !out;
-    digitalWrite(USB_POLL_OUT, out);
+    digitalWrite(14, out);
+    MAIN_LED(out);
+    
     TPM0_CNT = 0;  // Start value for timer
     TPM0_SC |= FTM_SC_TOF;  // Clear pending bits
+    
+    // Wait on timer overflow
     while(!(TPM0_SC & FTM_SC_TOF));
-    //delay(1);
   }
    
 }
