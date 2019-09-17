@@ -6,14 +6,16 @@ The features are:
 - Indication of the real used USB poll time
 */
 
+#include <Arduino.h>
+
 #include <usb_desc.h>
 
+// Turn main LED on/off
+//#define MAIN_LED(on)    digitalWrite(LED_BUILTIN, on)
+#define MAIN_LED(on)    
 
-// Teensy LC main LED
-#define LED_MAIN  13
-
-// The pin used for poll-out.
-#define USB_POLL_OUT  0
+// The pin used for poll-out. (Note: the built-in LED is pin 13)
+#define USB_POLL_OUT  14
 
 // Buttons start at this digital pin
 #define BUTTONS_PIN_OFFS 0    // Digital pin 0 is button 0
@@ -29,7 +31,6 @@ The features are:
 
 // The deounce and minimal press- and release time of a button (in ms).
 #define MIN_PRESS_TIME 1000
-
 
 
 // Timer values for all joystick buttons
@@ -69,7 +70,7 @@ void indicateUsbPollRate() {
     if(mainLedCounter < 0) {
       // toggle main LED
       mainLedOut = !mainLedOut;
-      digitalWrite(LED_MAIN, mainLedOut);
+      MAIN_LED(mainLedOut);
       mainLedCounter = 1000;
     }
 }
@@ -118,8 +119,8 @@ void handleAxes() {
   // Go through all axes
   for(int i=0; i<COUNT_AXES; i++) {
     // Read buttons for the axis of the joystick
-    int axisLow = (digitalRead(AXES_PIN_OFFS+2*i) == LOW) ? 0 : 512; // Active LOW
-    int axisHigh = (digitalRead(AXES_PIN_OFFS+2*i+1) == LOW) ? 1023 : 512; // Active LOW
+    int axisLow = (digitalRead(AXES_PIN_OFFS+(i<<1)) == LOW) ? 0 : 512; // Active LOW
+    int axisHigh = (digitalRead(AXES_PIN_OFFS+(i<<1)+1) == LOW) ? 1023 : 512; // Active LOW
     
     // Check if axis timer is 0
     if(axesTimers[i] > JOYSTICK_INTERVAL) {
@@ -183,8 +184,14 @@ void handleJoystick() {
   
 // SETUP
 void setup() {
+  delay(1000);
+  Serial.println(F_CPU); 
+   
+  // Disable interrupts
+  noInterrupts();
+  
   // Initialize pins
-  pinMode(LED_MAIN, OUTPUT);
+  pinMode(LED_BUILTIN, OUTPUT);
   pinMode(USB_POLL_OUT, OUTPUT);
 
   // Initialize buttons
@@ -196,8 +203,56 @@ void setup() {
   }
 
 
-        pinMode(14,OUTPUT);
+ // Setup timer 2 (8 bit timer) to check that the whole joystick handling is handled
+ // completely within 900us (<1ms).
 
+  uint32_t mcg_sc = MCG_SC;
+  int fcrdiv = (MCG_SC >> 1) & 0b0111;
+  Serial.println(fcrdiv);
+  MCG_C1 &= ~ 0b010; // Disable IRCLK
+  MCG_SC = (mcg_sc & (~0b01110)); // 4MHz. | 0b0010;  // Divider = 2 => 2MHz = 0.5us (*2 => 1us)
+  fcrdiv = (MCG_SC >> 1) & 0b0111;
+  Serial.println(fcrdiv);
+  int irclken = (MCG_C1 >> 1) & 0b01; 
+  Serial.println(irclken);
+  MCG_C2 |= 0b001;  // IRCS. fastinternal reference clock enabled
+  
+  // Clock source
+  uint32_t sim_sopt2 = SIM_SOPT2;
+  // 11 = MCGIRCLK
+  SIM_SOPT2 = (sim_sopt2 & 0b11111100111111111111111111111111) | 0b00000011000000000000000000000000;
+
+  
+  // Prescaler: 64 -> resolution 1.333us=4/3us (at F_CPU=48MHz).
+  TPM0_SC = 0;
+//  TPM0_SC |= 0b00000101;//10;  // Prescaler :32
+  TPM0_SC |= 0b00000100;  // Prescaler :4 = 1Mhz
+  //FUNKTIOIERT noch nicht!!!!!
+  TPM0_SC |= 0b00001000;  // Enable timer
+  TPM0_SC |= FTM_SC_TOF;  // Clear overflow
+
+  MCG_C1 |= 0b010;  // IRCLKEN = enabled
+
+  // Time (900us). When this is reached the overflow flag is set.
+  TPM0_MOD = 1000; // 1000us
+
+  Serial.println(TPM0_MOD);
+  
+//TPM0_MOD = 4000; //2*1333;
+
+interrupts();
+  bool out = false;
+  while(true) {
+    TPM0_CNT = 0;  // Start value for timer
+    TPM0_SC |= FTM_SC_TOF;  // Clear pending bits
+    out = !out;
+    digitalWrite(USB_POLL_OUT, out);
+    TPM0_CNT = 0;  // Start value for timer
+    TPM0_SC |= FTM_SC_TOF;  // Clear pending bits
+    while(!(TPM0_SC & FTM_SC_TOF));
+    //delay(1);
+  }
+   
 }
 
 
@@ -207,19 +262,39 @@ void loop() {
 
   // Loop forever
   while(true) {
+    // Prepare USB packet and wait for poll.
+    usb_joystick_send();
     
+    // Reset timer 2 (8 bit timer) to check that the whole joystick handling is handled
+    // completely within 900us (<1ms).
+    TPM0_CNT = 0;  // Start value for timer
+ TPM0_MOD = 1000; 
+  TPM0_SC = FTM_SC_TOF | 0b00001110;  // Clear pending bits
+    if(TPM0_SC & FTM_SC_TOF) 
+      break;
+   
     // Handle poll interval output.
     indicateUsbPollRate();
 
+    // Delay sampling
     delayMicroseconds(800);
 
     // Handle joystick buttons and axis
     handleJoystick();
 
-    // Prepare USB packet and wait for poll.
-    //Joystick.send_now();
-    usb_joystick_send();
-    
-      digitalWrite(14, false);
+    // Assure that joystick handling didn't take too long
+   // if(TPM0_SC & FTM_SC_TOF) 
+   //   break;
   }
+
+  // We should never get here. But if we do the assumption that the joystick + sampling delay is handled within 
+  // 1ms (i.e. 900us) is wrong.
+  // This is indicated by fast blinking of the LED.
+  while(true) {
+    MAIN_LED(false);
+    delay(150);
+    MAIN_LED(true);
+    delay(50);
+  }
+  
 }
