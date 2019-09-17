@@ -77,7 +77,7 @@ void indicateUsbPollRate() {
     if(mainLedCounter < 0) {
       // toggle main LED
       mainLedOut = !mainLedOut;
-      //MAIN_LED(mainLedOut);
+      MAIN_LED(mainLedOut);
       mainLedCounter = 1000;
     }
 }
@@ -190,7 +190,9 @@ void handleJoystick() {
 // Takes a string from serial in and decodes it.
 // Correct strings look like:
 // "o7=1" or "o3=0"
-// for setting ouput 7 to HIGH and output 3 to LOW
+// for setting ouput 7 to HIGH and output 3 to LOW.
+// On host die (linux or mac) you can use e.g.:
+// echo o0=1 > /dev/cu.usbXXXX
 void decodeSerialIn(char* input) {
   // Check for 'o'utput
   if(input[0] != 'o')
@@ -351,8 +353,8 @@ void loop() {
     // Handle serial in
     handleSerialIn();
 
-   // Wait some time
-    while(TPM0_CNT < 1600);
+    // Wait some time
+    while(TPM0_CNT < 500);
 
     digitalWrite(14, false);
    
@@ -362,6 +364,8 @@ void loop() {
  
 
     // Assure that joystick handling didn't take too long
+   // if(TPM0_CNT > 1800)
+     // break;
     //if(TPM0_SC & FTM_SC_TOF) 
       //break;
   }
