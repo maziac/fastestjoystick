@@ -29,6 +29,13 @@ The features are:
 // Number of different joystick axes. At maximum 2 axes are supported.
 #define COUNT_AXES   2
 
+// Digital outputs start at this pin
+#define DOUTS_PIN_OFFS  15
+
+// Number of digital outs
+#define COUNT_DOUTS  3
+
+
 // The deounce and minimal press- and release time of a button (in ms).
 #define MIN_PRESS_TIME 1000
 
@@ -180,6 +187,66 @@ void handleJoystick() {
 }
 
 
+// Takes a string from serial in and decodes it.
+// Correct strings look like:
+// "o7=1" or "o3=0"
+// for setting ouput 7 to HIGH and output 3 to LOW
+void decodeSerialIn(char* input) {
+  // Check for 'o'utput
+  if(input[0] != 'o')
+    return;
+
+  // Get output
+  int pin = input[1] - '0';
+  // Check
+  if(pin < 0 || pin >= COUNT_DOUTS)
+    return;
+
+  // Get value
+  int value = input[3] - '0';
+  // Check
+  if(value < 0 || value > 1)
+    return;
+
+  // Set pin
+  digitalWrite(DOUTS_PIN_OFFS+pin, value);
+#if 01
+  Serial.print("PIN ");
+  Serial.print(pin);
+  Serial.print(" = ");
+  Serial.println(value);
+#endif 
+}
+
+
+// Handles the serial input.
+// Via serial in some digital output pins can be driven, e.g. for LED light of the buttons.
+void handleSerialIn() {
+  static char input[10];
+  static char* inpPtr = input;
+  
+  // Check if data available
+  while(Serial.available()) {
+    // Get data 
+    char c = Serial.read();
+    if(c == '\n') {
+      // End found
+      *inpPtr = 0;
+      inpPtr = input;
+      // Decode input
+      decodeSerialIn(input);
+      break;
+    }
+    else {
+      // Input too long?
+      if(inpPtr > (input+sizeof(input)-1))
+        break;
+      // Remember character
+      *inpPtr = c;   
+      inpPtr++;
+    }
+  }
+}
 
   
 // SETUP
@@ -189,18 +256,21 @@ void setup() {
   Serial.println(F_CPU); 
    
   // Disable interrupts
-  noInterrupts();
+  //noInterrupts();
   
   // Initialize pins
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(USB_POLL_OUT, OUTPUT);
 
-  // Initialize buttons
+  // Initialize buttons, axes and digital outs
   for(int i=0; i<COUNT_BUTTONS; i++) {
     pinMode(BUTTONS_PIN_OFFS+i, INPUT_PULLUP);
   }
   for(int i=0; i<2*COUNT_AXES; i++) {
     pinMode(AXES_PIN_OFFS+i, INPUT_PULLUP);
+  }
+  for(int i=0; i<COUNT_DOUTS; i++) {
+    pinMode(DOUTS_PIN_OFFS+i, OUTPUT);
   }
 
     // Setup timer
@@ -277,6 +347,9 @@ void loop() {
  
     // Handle poll interval output.
     indicateUsbPollRate();
+
+    // Handle serial in
+    handleSerialIn();
 
    // Wait some time
     while(TPM0_CNT < 1600);
