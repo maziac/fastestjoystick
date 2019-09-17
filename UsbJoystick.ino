@@ -11,8 +11,8 @@ The features are:
 #include <usb_desc.h>
 
 // Turn main LED on/off
-//#define MAIN_LED(on)    digitalWrite(LED_BUILTIN, on)
-#define MAIN_LED(on)    
+#define MAIN_LED(on)    digitalWrite(LED_BUILTIN, on)
+//#define MAIN_LED(on)    
 
 // The pin used for poll-out. (Note: the built-in LED is pin 13)
 #define USB_POLL_OUT  14
@@ -61,7 +61,7 @@ void indicateUsbPollRate() {
     // USB_POLL_OUT:
     static bool usbPollOut = false;
     usbPollOut = !usbPollOut;
-    digitalWrite(USB_POLL_OUT, usbPollOut);
+    //digitalWrite(USB_POLL_OUT, usbPollOut);
 
     // Main LED (poll time / 1000)
     static bool mainLedOut = false;
@@ -70,7 +70,7 @@ void indicateUsbPollRate() {
     if(mainLedCounter < 0) {
       // toggle main LED
       mainLedOut = !mainLedOut;
-      MAIN_LED(mainLedOut);
+      //MAIN_LED(mainLedOut);
       mainLedCounter = 1000;
     }
 }
@@ -184,7 +184,7 @@ void handleJoystick() {
   
 // SETUP
 void setup() {
-#if 0
+#if 01
   delay(1000);
   Serial.println(F_CPU); 
    
@@ -202,9 +202,28 @@ void setup() {
   for(int i=0; i<2*COUNT_AXES; i++) {
     pinMode(AXES_PIN_OFFS+i, INPUT_PULLUP);
   }
+
+    // Setup timer
+  MCG_C1 &= ~0b010; // Disable IRCLK
+  MCG_SC &= ~0b01110; // Divider = 1 => 4MHz
+  MCG_C2 |= 0b001;  // IRCS. fast internal reference clock enabled
+  
+  // Clock source
+  SIM_SOPT2 |= 0b00000011000000000000000000000000;  // MCGIRCLK
+
+  // Prescaler: 4 -> 4MHz/4 = 1MHz => 1us
+  TPM0_SC = 0;
+  TPM0_SC |= 0b00000010;  // Prescaler /4 = 1Mhz
+  TPM0_SC |= 0b00001000;  // Enable timer
+ 
+  MCG_C1 |= 0b010;  // IRCLKEN = enabled
+
+  // When this is reached the overflow flag is set.
+  TPM0_MOD = 1800; // 1000us = 1ms
 #endif
 
 
+#if 0
   // Initialize pins
   pinMode(14, OUTPUT);
 
@@ -224,7 +243,7 @@ void setup() {
   MCG_C1 |= 0b010;  // IRCLKEN = enabled
 
   // When this is reached the overflow flag is set.
-  TPM0_MOD = 1000; // 1000us = 1ms
+  TPM0_MOD = 2000; // 1000us = 1ms
 
   // Loop: toggle a pin each time the timer elapses (overflows)
   bool out = false;
@@ -234,47 +253,44 @@ void setup() {
     
     out = !out;
     digitalWrite(14, out);
-    MAIN_LED(out);
-    
-    TPM0_CNT = 0;  // Start value for timer
-    TPM0_SC |= FTM_SC_TOF;  // Clear pending bits
-    
+
     // Wait on timer overflow
     while(!(TPM0_SC & FTM_SC_TOF));
   }
-   
+#endif
 }
 
 
 
 // MAIN LOOP
 void loop() {
-
-  // Loop forever
   while(true) {
+
     // Prepare USB packet and wait for poll.
     usb_joystick_send();
-    
-    // Reset timer 2 (8 bit timer) to check that the whole joystick handling is handled
-    // completely within 900us (<1ms).
+
+    // Restart timer 0
     TPM0_CNT = 0;  // Start value for timer
- TPM0_MOD = 1000; 
-  TPM0_SC = FTM_SC_TOF | 0b00001110;  // Clear pending bits
-    if(TPM0_SC & FTM_SC_TOF) 
-      break;
-   
+    TPM0_SC |= FTM_SC_TOF;  // Clear overflow
+
+    digitalWrite(14, true);
+ 
     // Handle poll interval output.
     indicateUsbPollRate();
 
-    // Delay sampling
-    delayMicroseconds(800);
+   // Wait some time
+    while(TPM0_CNT < 1600);
 
+    digitalWrite(14, false);
+   
     // Handle joystick buttons and axis
-    handleJoystick();
+    handleJoystick();  // about 30us
+    //digitalWrite(14, true);
+ 
 
     // Assure that joystick handling didn't take too long
-   // if(TPM0_SC & FTM_SC_TOF) 
-   //   break;
+    //if(TPM0_SC & FTM_SC_TOF) 
+      //break;
   }
 
   // We should never get here. But if we do the assumption that the joystick + sampling delay is handled within 
