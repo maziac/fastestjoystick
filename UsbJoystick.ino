@@ -9,6 +9,7 @@ The features are:
 #include <Arduino.h>
 
 #include <usb_desc.h>
+#include <usb_dev.h>
 
 
 // *** HW CONFIGURATION BEGIN ************************************************
@@ -363,18 +364,33 @@ void setup() {
 
 // MAIN LOOP
 void loop() {
-  while(true) {
+  // Make sure that no USB packet is in the queue
+  while(usb_tx_packet_count(JOYSTICK_ENDPOINT) > 0);
 
+
+  // Endless loop
+  while(true) {
+digitalWrite(14, true);
+ 
     // Prepare USB packet and wait for poll.
     usb_joystick_send();
 
+    // There should be exact 1 packet in the queue (or maybe 0 if the poll already happened in the short timeframe
+    // Between usb_joysticksend and here).
+    ASSERT(usb_tx_packet_count(JOYSTICK_ENDPOINT) <= 1);
+    
+    // Wait on USB poll
+    while(usb_tx_packet_count(JOYSTICK_ENDPOINT) > 0);
+
+digitalWrite(14, false);
+ 
     // Restart timer 0  
     TPM0_CNT = 0; 
     // Clear overflow
     while(TPM0_SC & FTM_SC_TOF)
       TPM0_SC |= FTM_SC_TOF; // spin wait
 
-    digitalWrite(14, true);
+    //digitalWrite(14, true);
  
     // Handle poll interval output.
     indicateUsbPollRate();
@@ -385,7 +401,7 @@ void loop() {
     // Wait some time
     while(TPM0_CNT < 800);
 
-    digitalWrite(14, false);
+    //digitalWrite(14, false);
    
     // Handle joystick buttons and axis
     handleJoystick();  // about 30-40us
