@@ -10,9 +10,8 @@ The features are:
 
 #include <usb_desc.h>
 
-// Turn main LED on/off
-#define MAIN_LED(on)    digitalWrite(LED_BUILTIN, on)
-//#define MAIN_LED(on)    
+
+// *** HW CONFIGURATION BEGIN ************************************************
 
 // The pin used for poll-out. (Note: the built-in LED is pin 13)
 #define USB_POLL_OUT  14
@@ -35,8 +34,18 @@ The features are:
 // Number of digital outs
 #define COUNT_DOUTS  3
 
+// *** HW CONFIGURATION END **************************************************
 
-// The deounce and minimal press- and release time of a button (in ms).
+
+// ASSERT macro
+#define ASSERT(cond)  {if(cond) error();}
+
+
+// Turn main LED on/off
+#define MAIN_LED(on)    digitalWrite(LED_BUILTIN, on)
+//#define MAIN_LED(on)    
+
+// The debounce and minimal press- and release time of a button (in ms).
 #define MIN_PRESS_TIME 1000
 
 
@@ -63,6 +72,22 @@ int lastAxesActivity[COUNT_AXES] = {};
 
 
 
+
+// We should never get here. But if we do the assumption that the joystick + sampling delay is handled within 
+// 1ms (i.e. 900us) is wrong.
+// Or some other error occured.
+// This is indicated by fast blinking of the LED.
+// The routine will never exit.
+void error() {
+  while(true) {
+    MAIN_LED(false);
+    delay(150);
+    MAIN_LED(true);
+    delay(50);
+  }
+}
+
+  
 // Handles the Output and LED to indicate the USB polling rate.
 void indicateUsbPollRate() {
     // USB_POLL_OUT:
@@ -279,19 +304,19 @@ void setup() {
   MCG_C1 &= ~0b010; // Disable IRCLK
   MCG_SC &= ~0b01110; // Divider = 1 => 4MHz
   MCG_C2 |= 0b001;  // IRCS. fast internal reference clock enabled
+  MCG_C1 |= 0b010;  // IRCLKEN = enabled
   
   // Clock source
   SIM_SOPT2 |= 0b00000011000000000000000000000000;  // MCGIRCLK
 
   // Prescaler: 4 -> 4MHz/4 = 1MHz => 1us
-  TPM0_SC = 0;
+  while (0 != (TPM0_SC & 0b00001000))
+    TPM0_SC = 0;  // spin wait 
   TPM0_SC |= 0b00000010;  // Prescaler /4 = 1Mhz
   TPM0_SC |= 0b00001000;  // Enable timer
- 
-  MCG_C1 |= 0b010;  // IRCLKEN = enabled
-
+  
   // When this is reached the overflow flag is set.
-  TPM0_MOD = 1800; // 1000us = 1ms
+  TPM0_MOD = 900; // 1000us = 1ms
 #endif
 
 
@@ -303,19 +328,21 @@ void setup() {
   MCG_C1 &= ~0b010; // Disable IRCLK
   MCG_SC &= ~0b01110; // Divider = 1 => 4MHz
   MCG_C2 |= 0b001;  // IRCS. fast internal reference clock enabled
+  MCG_C1 |= 0b010;  // IRCLKEN = enabled
   
   // Clock source
   SIM_SOPT2 |= 0b00000011000000000000000000000000;  // MCGIRCLK
 
   // Prescaler: 4 -> 4MHz/4 = 1MHz => 1us
   TPM0_SC = 0;
+  while (0 != (TPM0_SC & 0b00001000))
+    TPM0_SC = 0;  // spin wait 
   TPM0_SC |= 0b00000010;  // Prescaler /4 = 1Mhz
   TPM0_SC |= 0b00001000;  // Enable timer
  
-  MCG_C1 |= 0b010;  // IRCLKEN = enabled
 
   // When this is reached the overflow flag is set.
-  TPM0_MOD = 2000; // 1000us = 1ms
+  TPM0_MOD = 1000; // 1000us = 1ms
 
   // Loop: toggle a pin each time the timer elapses (overflows)
   bool out = false;
@@ -341,8 +368,10 @@ void loop() {
     // Prepare USB packet and wait for poll.
     usb_joystick_send();
 
-    // Restart timer 0
-    TPM0_CNT = 0;  // Start value for timer
+    // Restart timer 0  
+    TPM0_CNT = 0; 
+    //ASSERT(TPM0_CNT < 1800);
+     
     TPM0_SC |= FTM_SC_TOF;  // Clear overflow
 
     digitalWrite(14, true);
@@ -354,7 +383,7 @@ void loop() {
     handleSerialIn();
 
     // Wait some time
-    while(TPM0_CNT < 500);
+    while(TPM0_CNT < 700);
 
     digitalWrite(14, false);
    
@@ -362,22 +391,14 @@ void loop() {
     handleJoystick();  // about 30us
     //digitalWrite(14, true);
  
-
+  // digitalWrite(14, true);
+ // while(!(TPM0_SC & FTM_SC_TOF));
+ 
     // Assure that joystick handling didn't take too long
    // if(TPM0_CNT > 1800)
      // break;
     //if(TPM0_SC & FTM_SC_TOF) 
       //break;
   }
-
-  // We should never get here. But if we do the assumption that the joystick + sampling delay is handled within 
-  // 1ms (i.e. 900us) is wrong.
-  // This is indicated by fast blinking of the LED.
-  while(true) {
-    MAIN_LED(false);
-    delay(150);
-    MAIN_LED(true);
-    delay(50);
-  }
-  
+ 
 }
