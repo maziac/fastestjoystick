@@ -12,7 +12,7 @@ The features are:
 #include <usb_dev.h>
 
 
-// *** HW CONFIGURATION BEGIN ************************************************
+// *** CONFIGURATION BEGIN ************************************************
 
 // The pin used for poll-out. (Note: the built-in LED is pin 13)
 #define USB_POLL_OUT  14
@@ -35,7 +35,11 @@ The features are:
 // Number of digital outs
 #define COUNT_DOUTS  3
 
-// *** HW CONFIGURATION END **************************************************
+
+// The debounce and minimal press- and release time of a button (in ms).
+uint16_t MIN_PRESS_TIME = 1000;
+
+// *** CONFIGURATION END **************************************************
 
 
 // ASSERT macro
@@ -47,13 +51,10 @@ The features are:
 #define MAIN_LED(on)    digitalWrite(LED_BUILTIN, on)
 //#define MAIN_LED(on)    
 
-// The debounce and minimal press- and release time of a button (in ms).
-#define MIN_PRESS_TIME 1000
 
 
 // Timer values for all joystick buttons
-//uint8_t
-int buttonTimers[COUNT_BUTTONS] = {};
+uint16_t buttonTimers[COUNT_BUTTONS] = {};
 
 // The (previous) joystick button values.
 //bool prevButtonValue[COUNT_BUTTONS];
@@ -61,8 +62,7 @@ int buttonTimers[COUNT_BUTTONS] = {};
 uint32_t prevButtonsValue = 0;  
 
 // Timer values for the axes.
-//uint8_t
-int axesTimers[COUNT_AXES] = {};
+uint16_t axesTimers[COUNT_AXES] = {};
 
 // The (previous) joystick button values.
 // Values: 0=left/down, 512=no direction, 1023=right/up
@@ -226,6 +226,16 @@ void handleJoystick() {
 }
 
 
+// Converts an ascii string into a number.
+uint16_t AsciiToUint(const char* s) {
+  uint16_t value = 0;
+  while(char c = *s++) {
+    value = 10*value + c-'0';
+  }
+  return value;
+}
+
+
 // Takes a string from serial in and decodes it.
 // Correct strings look like:
 // "o7=1" or "o3=0"
@@ -247,22 +257,34 @@ void decodeSerialIn(char* input) {
       // Get output
       int pin = input[1] - '0';
       // Check
-      if(pin < 0 || pin >= COUNT_DOUTS)
+      if(pin < 0 || pin >= COUNT_DOUTS) {
+        Serial.println("Error: pin");
         return;
+      }
     
       // Get value
       int value = input[3] - '0';
       // Check
-      if(value < 0 || value > 1)
+      if(value < 0 || value > 1) {
+        Serial.println("Error: value");
         return;
+      }
     
       // Set pin
       digitalWrite(DOUTS_PIN_OFFS+pin, value);
+      Serial.print("DOUT");
+      Serial.print(pin);
+      Serial.print(" (Pin=");
+      Serial.print(pin);
+      Serial.print(") set to ");
+      Serial.print(value);
     }
     break;    
       
     // Reset
     case 'r':
+      Serial.println("Resetting");
+      delay(2000);
 #define RESTART_ADDR 0xE000ED0C
 #define WRITE_RESTART(val) ((*(volatile uint32_t *)RESTART_ADDR) = (val))
       WRITE_RESTART(0x5FA0004);
@@ -271,11 +293,24 @@ void decodeSerialIn(char* input) {
     // Test fast blinking
     case 't':
       error("Test");
-      break;
+    break;
       
     // Change minimum press time
     case 'p':
-      break;
+    {
+      uint16_t pressTime = AsciiToUint(&input[2]);
+      Serial.print("Changing press time to ");
+      Serial.print(pressTime);
+      Serial.println("ms");
+      MIN_PRESS_TIME = pressTime;
+    }
+    break;
+
+    // Unknown command
+    default:
+      Serial.print("Error: Unknown command: ");
+      Serial.println(input);
+    break; 
   }   
 }
 
@@ -313,8 +348,6 @@ void handleSerialIn() {
 // SETUP
 void setup() {
 #if 01
-  delay(1000);
-  Serial.println(F_CPU); 
    
   // Disable interrupts
   //noInterrupts();
