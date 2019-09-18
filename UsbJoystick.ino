@@ -39,8 +39,9 @@ The features are:
 
 
 // ASSERT macro
-#define ASSERT(cond)  {if(!(cond)) error();}
-
+#define ASSERT(cond)  {if(!(cond)) error("LINE " TOSTRING(__LINE__) ": ASSERT(" #cond ")");}
+#define STRINGIFY(x) #x
+#define TOSTRING(x) STRINGIFY(x)
 
 // Turn main LED on/off
 #define MAIN_LED(on)    digitalWrite(LED_BUILTIN, on)
@@ -79,7 +80,10 @@ int lastAxesActivity[COUNT_AXES] = {};
 // Or some other error occured.
 // This is indicated by fast blinking of the LED and also all digital outs will blink.
 // The routine will never exit.
-void error() {
+void error(const char* text) {
+  // Print text to serial
+  Serial.println(text);
+  // Endless loop
   while(true) {
     MAIN_LED(false);
     for(int i=0; i<COUNT_DOUTS; i++) {
@@ -266,6 +270,7 @@ void decodeSerialIn(char* input) {
       
     // Test fast blinking
     case 't':
+      error("Test");
       break;
       
     // Change minimum press time
