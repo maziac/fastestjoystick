@@ -42,6 +42,7 @@ uint16_t MIN_PRESS_TIME = 1000;
 // *** CONFIGURATION END **************************************************
 
 
+
 // ASSERT macro
 #define ASSERT(cond)  {if(!(cond)) error("LINE " TOSTRING(__LINE__) ": ASSERT(" #cond ")");}
 #define STRINGIFY(x) #x
@@ -277,7 +278,7 @@ void decodeSerialIn(char* input) {
       Serial.print(" (Pin=");
       Serial.print(pin);
       Serial.print(") set to ");
-      Serial.print(value);
+      Serial.println(value);
     }
     break;    
       
