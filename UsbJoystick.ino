@@ -91,10 +91,13 @@ void error() {
       pinMode(DOUTS_PIN_OFFS+i, true);
     }
     delay(50);
+    
+    // Handle serial in
+    handleSerialIn();
   }
 }
 
-  
+
 // Handles the Output and LED to indicate the USB polling rate.
 void indicateUsbPollRate() {
     // USB_POLL_OUT:
@@ -222,34 +225,53 @@ void handleJoystick() {
 // Takes a string from serial in and decodes it.
 // Correct strings look like:
 // "o7=1" or "o3=0"
-// for setting ouput 7 to HIGH and output 3 to LOW.
+// e.g. for setting ouput 7 to HIGH and output 3 to LOW.
 // On host die (linux or mac) you can use e.g.:
 // echo o0=1 > /dev/cu.usbXXXX
+// Supported commands are:
+// oN=X : Set output N to X (o or 1)
+// r : Reset
+// t : Test the blinking
+// p=Y : Change minimum press time to Y (in ms), e.g. "w=25"
 void decodeSerialIn(char* input) {
-  // Check for 'o'utput
-  if(input[0] != 'o')
-    return;
-
-  // Get output
-  int pin = input[1] - '0';
-  // Check
-  if(pin < 0 || pin >= COUNT_DOUTS)
-    return;
-
-  // Get value
-  int value = input[3] - '0';
-  // Check
-  if(value < 0 || value > 1)
-    return;
-
-  // Set pin
-  digitalWrite(DOUTS_PIN_OFFS+pin, value);
-#if 01
-  Serial.print("PIN ");
-  Serial.print(pin);
-  Serial.print(" = ");
-  Serial.println(value);
-#endif 
+  // Check for command
+  switch(input[0]) {
+    
+    // Set output
+    case 'o':
+    {
+      // Get output
+      int pin = input[1] - '0';
+      // Check
+      if(pin < 0 || pin >= COUNT_DOUTS)
+        return;
+    
+      // Get value
+      int value = input[3] - '0';
+      // Check
+      if(value < 0 || value > 1)
+        return;
+    
+      // Set pin
+      digitalWrite(DOUTS_PIN_OFFS+pin, value);
+    }
+    break;    
+      
+    // Reset
+    case 'r':
+#define RESTART_ADDR 0xE000ED0C
+#define WRITE_RESTART(val) ((*(volatile uint32_t *)RESTART_ADDR) = (val))
+      WRITE_RESTART(0x5FA0004);
+    break;
+      
+    // Test fast blinking
+    case 't':
+      break;
+      
+    // Change minimum press time
+    case 'p':
+      break;
+  }   
 }
 
 
