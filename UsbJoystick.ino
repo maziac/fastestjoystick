@@ -370,19 +370,15 @@ void loop() {
 
   // Endless loop
   while(true) {
-digitalWrite(14, true);
  
-    // Prepare USB packet and wait for poll.
+    // There should be exact no packet in the queue.
+    ASSERT(usb_tx_packet_count(JOYSTICK_ENDPOINT) == 0);
+  
+    // Prepare USB packet (note: this should immediately return as the packet queue is empty at this point.
     usb_joystick_send();
-
-    // There should be exact 1 packet in the queue (or maybe 0 if the poll already happened in the short timeframe
-    // Between usb_joysticksend and here).
-    ASSERT(usb_tx_packet_count(JOYSTICK_ENDPOINT) <= 1);
-    
+  
     // Wait on USB poll
     while(usb_tx_packet_count(JOYSTICK_ENDPOINT) > 0);
-
-digitalWrite(14, false);
  
     // Restart timer 0  
     TPM0_CNT = 0; 

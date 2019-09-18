@@ -1,21 +1,32 @@
-# USB Teensy Joystick
+# Fastest Joystick
 
 **Note: This is still work in progress. I.e. not finished.**
 
-The idea to write the firmware for an USB controller raise din me when doing the USB controller measurements in 
+The idea to write the firmware for an USB controller raised in me when doing the USB controller measurements in 
 [LagMeter](../LagMeter/Readme.md).
-It is quite invisible what a usual game controllers does when sampling the buttons and the axis data and what delay it might add.
+It is quite invisible what a usual game controller does when sampling the buttons and the axis data and what delay it might add.
 The only information one gets is the suggested polling rate that the game controller requests from the USB host.
 But this is only part of the story: the firmware of the game controller need to sample the joystick data and prepare it in time, i.e. within this polling interval.
-Furthermore I wanted to have control on the debouncing and minimum press time.
+Furthermore I wanted to have control on the debouncing and minimum press time for the buttons.
 So the only way to get absolute control on what is happening on the firmware side is to write it by myself.
 
-This project is about the firmware of a USB controller. It's not about the HW. So, if you would want to do this on your own you can use an Arcade stick or buttons or use the HW of a USB controller, throw it's electronics away and substitute it with a Teensy board and this SW.
+This project is about the firmware of a USB controller. It's not about the HW. So, if you would want to do this on your own you can use an Arcade stick or buttons or use the HW of an existing USB game controller, throw it's electronics away and substitute it with a Teensy board and this SW.
+
+**The goal of this project is to create the fastest USB game controller firmware available with a guaranteed reaction time.** 
 
 The features are:
 - Requested 1ms USB poll time
-- Additional delay of max. (??)
+- Additional delay of max. 200us.
+- I.e. in total this is a reaction time in the range of 0.2ms to 1.2ms.
 - Indication of the real used USB poll time
+
+For comparison:
+A typical game controller often has a poll time of 8ms. This in itself leads to a reaction time of 8 to 16ms. Sometimes the controller itself has another delay that needs to be added. So this not only jitters a lot, it is already quite close to 1 frame delay.
+Even faster game controller with 1ms poll time introduce an inherent delay of about 5ms.
+(I only heard of 1 USB controller with a 1ms delay but unfortunately I lost the link.)
+
+
+# HW
 
 Used HW is a cheap Teensy LC board that you can get around 10€.
 
@@ -102,7 +113,6 @@ If not: the main LED will start to blink fast.
 
 
 
-
 ## Host's Poll Time
 
 The firmware will show the current used USB polling rate in 2 ways.
@@ -111,3 +121,15 @@ If you attach an oscilloscope you can see the the polling interval directly.
 I.e. a 1ms polling looks like this:
 ![](Images/usb_poll_1ms.BMP)
 2. The main LED (on the Teensy board) will be toggled depending on the USB poll interval. Every 1000th USB poll the LED will be toggled. I.e. for a 1ms interval the LED will toggle every 1 second. For 8ms USB interval the LED will toggle every 8 seconds.
+
+
+## USB packet queue
+
+In the Teensy it doesn't seem to be easily possible to detect when the host does an USB poll.
+One way is to send a packet and watch when the packet has been read (usb_tx_packet_count).
+Unfortunately this involves that a packet has to be sent even if no new data is available.
+
+Furthermore the library uses a queue of 3 packets (TX_PACKET_LIMIT).
+If we simply write into the queue we end up in a delay of 3ms.
+So the SW clears the queue and afterwards synchronizes with USB poll to make sure that always only 1 packet is in use. 
+I.e. the packet is immediately sent in the next USB poll.
