@@ -38,7 +38,7 @@ The features are:
 
 
 // ASSERT macro
-#define ASSERT(cond)  {if(cond) error();}
+#define ASSERT(cond)  {if(!(cond)) error();}
 
 
 // Turn main LED on/off
@@ -315,7 +315,7 @@ void setup() {
   TPM0_SC |= 0b00000010;  // Prescaler /4 = 1Mhz
   TPM0_SC |= 0b00001000;  // Enable timer
   
-  // When this is reached the overflow flag is set.
+  // When this is reached the overflow flag is set. (In us).
   TPM0_MOD = 900; // 1000us = 1ms
 #endif
 
@@ -370,9 +370,9 @@ void loop() {
 
     // Restart timer 0  
     TPM0_CNT = 0; 
-    //ASSERT(TPM0_CNT < 1800);
-     
-    TPM0_SC |= FTM_SC_TOF;  // Clear overflow
+    // Clear overflow
+    while(TPM0_SC & FTM_SC_TOF)
+      TPM0_SC |= FTM_SC_TOF; // spin wait
 
     digitalWrite(14, true);
  
@@ -383,22 +383,14 @@ void loop() {
     handleSerialIn();
 
     // Wait some time
-    while(TPM0_CNT < 700);
+    while(TPM0_CNT < 800);
 
     digitalWrite(14, false);
    
     // Handle joystick buttons and axis
-    handleJoystick();  // about 30us
-    //digitalWrite(14, true);
- 
-  // digitalWrite(14, true);
- // while(!(TPM0_SC & FTM_SC_TOF));
- 
-    // Assure that joystick handling didn't take too long
-   // if(TPM0_CNT > 1800)
-     // break;
-    //if(TPM0_SC & FTM_SC_TOF) 
-      //break;
+    handleJoystick();  // about 30-40us
+
+    // Check that routines did not take too long (no overflow)
+    ASSERT(!(TPM0_SC & FTM_SC_TOF));
   }
- 
 }
