@@ -77,13 +77,19 @@ int lastAxesActivity[COUNT_AXES] = {};
 // We should never get here. But if we do the assumption that the joystick + sampling delay is handled within 
 // 1ms (i.e. 900us) is wrong.
 // Or some other error occured.
-// This is indicated by fast blinking of the LED.
+// This is indicated by fast blinking of the LED and also all digital outs will blink.
 // The routine will never exit.
 void error() {
   while(true) {
     MAIN_LED(false);
+    for(int i=0; i<COUNT_DOUTS; i++) {
+      pinMode(DOUTS_PIN_OFFS+i, false);
+    }
     delay(150);
     MAIN_LED(true);
+    for(int i=0; i<COUNT_DOUTS; i++) {
+      pinMode(DOUTS_PIN_OFFS+i, true);
+    }
     delay(50);
   }
 }
