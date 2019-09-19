@@ -251,10 +251,11 @@ uint16_t AsciiToUint(const char* s) {
 // On host die (linux or mac) you can use e.g.:
 // echo o0=1 > /dev/cu.usbXXXX
 // Supported commands are:
-// oN=X : Set output N to X (o or 1)
+// oN=X : Set output N to X (0 or 1)
 // r : Reset
 // t : Test the blinking
-// p=Y : Change minimum press time to Y (in ms), e.g. "w=25"
+// p=Y : Change minimum press time to Y (in ms), e.g. "p=25"
+// i : Info. Print version number and used times.
 void decodeSerialIn(char* input) {
   // Check for command
   switch(input[0]) {
@@ -317,6 +318,7 @@ void decodeSerialIn(char* input) {
     // Change minimum press time
     case 'i':
       Serial.println("Version: " SW_VERSION);
+      Serial.print("Min. press time:    ");Serial.print(MIN_PRESS_TIME);Serial.println("ms");
       Serial.print("Max. time serial:   ");Serial.print(maxTimeSerial);Serial.println("us");
       Serial.print("Max. time joystick: ");Serial.print(maxTimeJoystick);Serial.println("us");
       Serial.print("Max. time total:    ");Serial.print(maxTimeTotal);Serial.println("us");
