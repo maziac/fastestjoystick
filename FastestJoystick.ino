@@ -2,7 +2,7 @@
 USB Joystick using a Teensy LC board.
 The features are:
 - Requested 1ms USB poll time
-- Additional delay of max. (??)
+- Additional delay of max. 200us
 - Indication of the real used USB poll time
 */
 
@@ -42,6 +42,9 @@ uint16_t MIN_PRESS_TIME = 1000;
 // *** CONFIGURATION END **************************************************
 
 
+// The SW version.
+#define SW_VERSION "0.1"
+
 
 // ASSERT macro
 #define ASSERT(cond)  {if(!(cond)) error("LINE " TOSTRING(__LINE__) ": ASSERT(" #cond ")");}
@@ -74,6 +77,10 @@ int prevAxesValue[COUNT_AXES];
 int lastAxesActivity[COUNT_AXES] = {};
 
 
+// Variables to measure the maximum timings.
+uint16_t maxTimeSerial = 0;
+uint16_t maxTimeJoystick = 0;
+uint16_t maxTimeTotal = 0;
 
 
 // We should never get here. But if we do the assumption that the joystick + sampling delay is handled within 
@@ -306,6 +313,18 @@ void decodeSerialIn(char* input) {
       MIN_PRESS_TIME = pressTime;
     }
     break;
+    
+    // Change minimum press time
+    case 'i':
+      Serial.println("Version: " SW_VERSION);
+      Serial.print("Max. time serial:   ");Serial.print(maxTimeSerial);Serial.println("us");
+      Serial.print("Max. time joystick: ");Serial.print(maxTimeJoystick);Serial.println("us");
+      Serial.print("Max. time total:    ");Serial.print(maxTimeTotal);Serial.println("us");
+      // Reset times
+      maxTimeSerial = 0;
+      maxTimeJoystick = 0;
+      maxTimeTotal = 0;
+    break;
 
     // Unknown command
     default:
@@ -461,13 +480,23 @@ void loop() {
     // Handle serial in
     handleSerialIn();
 
+    // Measure time
+    if(TPM0_CNT > maxTimeSerial)  maxTimeSerial = TPM0_CNT;   
+
     // Wait some time
     while(TPM0_CNT < 800);
 
+    // For time measurement
+    uint16_t timeStart = TPM0_CNT;
+    
     //digitalWrite(14, false);
    
     // Handle joystick buttons and axis
     handleJoystick();  // about 30-40us
+
+    // Measure time
+    if(TPM0_CNT > maxTimeTotal)  maxTimeTotal = TPM0_CNT;   
+    if(TPM0_CNT-timeStart > maxTimeJoystick)  maxTimeJoystick = TPM0_CNT-timeStart;   
 
     // Check that routines did not take too long (no overflow)
     ASSERT(!(TPM0_SC & FTM_SC_TOF));
