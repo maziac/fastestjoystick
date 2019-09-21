@@ -41,7 +41,7 @@ The features are:
 
 
 // The debounce and minimal press- and release time of a button (in ms).
-uint16_t MIN_PRESS_TIME = 1000;
+uint16_t MIN_PRESS_TIME = 1; //25;
 
 // *** CONFIGURATION END **************************************************
 
