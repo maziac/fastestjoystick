@@ -13,6 +13,10 @@ The features are:
 
 
 // *** CONFIGURATION BEGIN ************************************************
+// Button 0-12 = Pin 0-12
+// Axis left/right: Pin 20/21 AU/AD
+// Axis down/up: Pin 22/23 AR/AL
+// DOUT 0-3 = Pin 16-19
 
 // The pin used for poll-out. (Note: the built-in LED is pin 13)
 #define USB_POLL_OUT  14
@@ -24,16 +28,16 @@ The features are:
 #define COUNT_BUTTONS   13    // Pins 0-12
 
 // Axes start at this digital pin
-#define AXES_PIN_OFFS 20  // Pins 20-23
+#define AXES_PIN_OFFS 20    // Pins 20-23
 
 // Number of different joystick axes. At maximum 2 axes are supported.
 #define COUNT_AXES   2
 
 // Digital outputs start at this pin
-#define DOUTS_PIN_OFFS  15
+#define DOUTS_PIN_OFFS  16  // Pins 16-19
 
 // Number of digital outs
-#define COUNT_DOUTS  3
+#define COUNT_DOUTS  4
 
 
 // The debounce and minimal press- and release time of a button (in ms).
@@ -43,7 +47,7 @@ uint16_t MIN_PRESS_TIME = 1000;
 
 
 // The SW version.
-#define SW_VERSION "0.1"
+#define SW_VERSION "0.2"
 
 
 // ASSERT macro
@@ -115,7 +119,7 @@ void indicateUsbPollRate() {
     // USB_POLL_OUT:
     static bool usbPollOut = false;
     usbPollOut = !usbPollOut;
-    //digitalWrite(USB_POLL_OUT, usbPollOut);
+    digitalWrite(USB_POLL_OUT, usbPollOut);
 
     // Main LED (poll time / 1000)
     static bool mainLedOut = false;
@@ -125,6 +129,8 @@ void indicateUsbPollRate() {
       // toggle main LED
       mainLedOut = !mainLedOut;
       MAIN_LED(mainLedOut);
+      for(int i=0; i<COUNT_DOUTS; i++)
+        digitalWrite(DOUTS_PIN_OFFS+i, mainLedOut);
       mainLedCounter = 1000;
     }
 }
@@ -167,9 +173,12 @@ void handleButtons() {
 
 // Reads the joystick axis.
 // Handles debouncing and minimum press time.
+// Note: This algorithm needs to be modified if COUNT_AXES is bigger than 2.
 void handleAxes() {
   int shift = 4;
   uint32_t mask = ~0xFFFFC00F;
+  //int shift = 4+((COUNT_AXES-1)*10);;
+  //uint32_t mask = (~0xFFFFC00F) << ((COUNT_AXES-1)*10);
   // Go through all axes
   for(int i=0; i<COUNT_AXES; i++) {
     // Read buttons for the axis of the joystick
@@ -220,6 +229,8 @@ L_JOY_AXIS_MOVED:
     // Next
     shift += 10;
     mask <<= 10;
+    //shift -= 10;
+    //mask >>= 10;
   }
 }
 
@@ -369,8 +380,6 @@ void handleSerialIn() {
   
 // SETUP
 void setup() {
-#if 01
-   
   // Disable interrupts
   //noInterrupts();
   
@@ -406,46 +415,6 @@ void setup() {
   
   // When this is reached the overflow flag is set. (In us).
   TPM0_MOD = 900; // 1000us = 1ms
-#endif
-
-
-#if 0
-  // Initialize pins
-  pinMode(14, OUTPUT);
-
-  // Setup timer
-  MCG_C1 &= ~0b010; // Disable IRCLK
-  MCG_SC &= ~0b01110; // Divider = 1 => 4MHz
-  MCG_C2 |= 0b001;  // IRCS. fast internal reference clock enabled
-  MCG_C1 |= 0b010;  // IRCLKEN = enabled
-  
-  // Clock source
-  SIM_SOPT2 |= 0b00000011000000000000000000000000;  // MCGIRCLK
-
-  // Prescaler: 4 -> 4MHz/4 = 1MHz => 1us
-  TPM0_SC = 0;
-  while (0 != (TPM0_SC & 0b00001000))
-    TPM0_SC = 0;  // spin wait 
-  TPM0_SC |= 0b00000010;  // Prescaler /4 = 1Mhz
-  TPM0_SC |= 0b00001000;  // Enable timer
- 
-
-  // When this is reached the overflow flag is set.
-  TPM0_MOD = 1000; // 1000us = 1ms
-
-  // Loop: toggle a pin each time the timer elapses (overflows)
-  bool out = false;
-  while(true) {
-    TPM0_CNT = 0;  // Start value for timer
-    TPM0_SC |= FTM_SC_TOF;  // Clear overflow
-    
-    out = !out;
-    digitalWrite(14, out);
-
-    // Wait on timer overflow
-    while(!(TPM0_SC & FTM_SC_TOF));
-  }
-#endif
 }
 
 

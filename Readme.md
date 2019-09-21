@@ -30,6 +30,11 @@ Even faster game controller with 1ms poll time introduce an inherent delay of ab
 
 Used HW is a cheap Teensy LC board that you can get around 10€.
 
+The pinout is used as following (but can be changed to fit your needs):
+![](Images/TeensyLCSchematics.png)
+
+Note: All pinouts I found for the axes JST connector were different, so I have chosen the pinout above. If you need a different one you just have to change the wiring.
+
 
 # SW / Firmware
 
@@ -121,6 +126,10 @@ If you attach an oscilloscope you can see the the polling interval directly.
 I.e. a 1ms polling looks like this:
 ![](Images/usb_poll_1ms.BMP)
 2. The main LED (on the Teensy board) will be toggled depending on the USB poll interval. Every 1000th USB poll the LED will be toggled. I.e. for a 1ms interval the LED will toggle every 1 second. For 8ms USB interval the LED will toggle every 8 seconds.
+
+Note: This works very well on a mac as soon as you plug in the Teensy.
+On linux this works as well but not from the beginning. The right usb poll time is available not before the Teensy Joystick is actually used. So you need to start e.g. jstest-gtk. At this point the LED will start to blink in the right interval. (Before it is always on.)
+
 
 
 ## USB packet queue
