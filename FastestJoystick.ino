@@ -47,7 +47,7 @@ uint16_t MIN_PRESS_TIME = 1; //25;
 
 
 // The SW version.
-#define SW_VERSION "0.2"
+#define SW_VERSION "0.3"
 
 
 // ASSERT macro
@@ -86,6 +86,9 @@ uint16_t maxTimeSerial = 0;
 uint16_t maxTimeJoystick = 0;
 uint16_t maxTimeTotal = 0;
 
+// Holds the last error. Used when info is printed.
+char lastError[100] = "None";
+
 
 // We should never get here. But if we do the assumption that the joystick + sampling delay is handled within 
 // 1ms (i.e. 900us) is wrong.
@@ -93,6 +96,8 @@ uint16_t maxTimeTotal = 0;
 // This is indicated by fast blinking of the LED and also all digital outs will blink.
 // The routine will never exit.
 void error(const char* text) {
+  // Save error
+  strcpy(lastError, text);
   // Print text to serial
   Serial.println(text);
   // Endless loop
@@ -129,8 +134,6 @@ void indicateUsbPollRate() {
       // toggle main LED
       mainLedOut = !mainLedOut;
       MAIN_LED(mainLedOut);
-      for(int i=0; i<COUNT_DOUTS; i++)
-        digitalWrite(DOUTS_PIN_OFFS+i, mainLedOut);
       mainLedCounter = 1000;
     }
 }
@@ -333,6 +336,7 @@ void decodeSerialIn(char* input) {
       Serial.print("Max. time serial:   ");Serial.print(maxTimeSerial);Serial.println("us");
       Serial.print("Max. time joystick: ");Serial.print(maxTimeJoystick);Serial.println("us");
       Serial.print("Max. time total:    ");Serial.print(maxTimeTotal);Serial.println("us");
+      Serial.print("Last error: ");Serial.println(lastError);
       // Reset times
       maxTimeSerial = 0;
       maxTimeJoystick = 0;
@@ -412,10 +416,11 @@ void setup() {
     TPM0_SC = 0;  // spin wait 
   TPM0_SC |= 0b00000010;  // Prescaler /4 = 1Mhz
   TPM0_SC |= 0b00001000;  // Enable timer
-  
+
   // When this is reached the overflow flag is set. (In us).
   TPM0_MOD = 900; // 1000us = 1ms
 }
+
 
 
 
