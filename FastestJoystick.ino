@@ -47,7 +47,7 @@ uint16_t MIN_PRESS_TIME = 1; //25;
 
 
 // The SW version.
-#define SW_VERSION "0.3"
+#define SW_VERSION "0.4"
 
 
 // ASSERT macro
@@ -281,7 +281,8 @@ void decodeSerialIn(char* input) {
       int pin = input[1] - '0';
       // Check
       if(pin < 0 || pin >= COUNT_DOUTS) {
-        Serial.println("Error: pin");
+        if(usb_tx_packet_count(CDC_TX_ENDPOINT) == 0)
+          Serial.println("Error: pin");
         return;
       }
     
@@ -289,18 +290,21 @@ void decodeSerialIn(char* input) {
       int value = input[3] - '0';
       // Check
       if(value < 0 || value > 1) {
-        Serial.println("Error: value");
+        if(usb_tx_packet_count(CDC_TX_ENDPOINT) == 0)
+          Serial.println("Error: value");
         return;
       }
     
       // Set pin
       digitalWrite(DOUTS_PIN_OFFS+pin, value);
-      Serial.print("DOUT");
-      Serial.print(pin);
-      Serial.print(" (Pin=");
-      Serial.print(pin);
-      Serial.print(") set to ");
-      Serial.println(value);
+      if(usb_tx_packet_count(CDC_TX_ENDPOINT) == 0) {
+        Serial.print("DOUT");
+        Serial.print(pin);
+        Serial.print(" (Pin=");
+        Serial.print(pin);
+        Serial.print(") set to ");
+        Serial.println(value);
+      }
     }
     break;    
       
@@ -321,22 +325,25 @@ void decodeSerialIn(char* input) {
     // Change minimum press time
     case 'p':
     {
-      uint16_t pressTime = AsciiToUint(&input[2]);
-      Serial.print("Changing press time to ");
-      Serial.print(pressTime);
-      Serial.println("ms");
-      MIN_PRESS_TIME = pressTime;
+      MIN_PRESS_TIME = AsciiToUint(&input[2]);
+      if(usb_tx_packet_count(CDC_TX_ENDPOINT) == 0) {
+        Serial.print("Changing press time to ");
+        Serial.print(MIN_PRESS_TIME);
+        Serial.println("ms");
+      }
     }
     break;
     
     // Change minimum press time
     case 'i':
-      Serial.println("Version: " SW_VERSION);
-      Serial.print("Min. press time:    ");Serial.print(MIN_PRESS_TIME);Serial.println("ms");
-      Serial.print("Max. time serial:   ");Serial.print(maxTimeSerial);Serial.println("us");
-      Serial.print("Max. time joystick: ");Serial.print(maxTimeJoystick);Serial.println("us");
-      Serial.print("Max. time total:    ");Serial.print(maxTimeTotal);Serial.println("us");
-      Serial.print("Last error: ");Serial.println(lastError);
+      if(usb_tx_packet_count(CDC_TX_ENDPOINT) == 0) {
+        Serial.println("Version: " SW_VERSION);
+        Serial.print("Min. press time:    ");Serial.print(MIN_PRESS_TIME);Serial.println("ms");
+        Serial.print("Max. time serial:   ");Serial.print(maxTimeSerial);Serial.println("us");
+        Serial.print("Max. time joystick: ");Serial.print(maxTimeJoystick);Serial.println("us");
+        Serial.print("Max. time total:    ");Serial.print(maxTimeTotal);Serial.println("us");
+        Serial.print("Last error: ");Serial.println(lastError);
+      }
       // Reset times
       maxTimeSerial = 0;
       maxTimeJoystick = 0;
@@ -345,8 +352,10 @@ void decodeSerialIn(char* input) {
 
     // Unknown command
     default:
-      Serial.print("Error: Unknown command: ");
-      Serial.println(input);
+      if(usb_tx_packet_count(CDC_TX_ENDPOINT) == 0) {
+        Serial.print("Error: Unknown command: ");
+        Serial.println(input);
+      }
     break; 
   }   
 }
