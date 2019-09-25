@@ -47,7 +47,7 @@ uint16_t MIN_PRESS_TIME = 1; //25;
 
 
 // The SW version.
-#define SW_VERSION "0.4"
+#define SW_VERSION "0.5"
 
 
 // ASSERT macro
@@ -394,7 +394,7 @@ void handleSerialIn() {
 // SETUP
 void setup() {
   // Disable interrupts
-  //noInterrupts();
+  noInterrupts();
   
   // Initialize pins
   pinMode(LED_BUILTIN, OUTPUT);
