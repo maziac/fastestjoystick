@@ -47,7 +47,7 @@ uint16_t MIN_PRESS_TIME = 1; //25;
 
 
 // The SW version.
-#define SW_VERSION "0.5"
+#define SW_VERSION "0.6"
 
 
 // ASSERT macro
@@ -310,7 +310,7 @@ void decodeSerialIn(char* input) {
       
     // Reset
     case 'r':
-      Serial.println("Resetting");
+     Serial.println("Resetting");
       delay(2000);
 #define RESTART_ADDR 0xE000ED0C
 #define WRITE_RESTART(val) ((*(volatile uint32_t *)RESTART_ADDR) = (val))
@@ -336,7 +336,7 @@ void decodeSerialIn(char* input) {
     
     // Change minimum press time
     case 'i':
-      if(usb_tx_packet_count(CDC_TX_ENDPOINT) == 0) {
+     if(usb_tx_packet_count(CDC_TX_ENDPOINT) == 0) {
         Serial.println("Version: " SW_VERSION);
         Serial.print("Min. press time:    ");Serial.print(MIN_PRESS_TIME);Serial.println("ms");
         Serial.print("Max. time serial:   ");Serial.print(maxTimeSerial);Serial.println("us");
@@ -352,7 +352,7 @@ void decodeSerialIn(char* input) {
 
     // Unknown command
     default:
-      if(usb_tx_packet_count(CDC_TX_ENDPOINT) == 0) {
+     if(usb_tx_packet_count(CDC_TX_ENDPOINT) == 0) {
         Serial.print("Error: Unknown command: ");
         Serial.println(input);
       }
@@ -366,26 +366,40 @@ void decodeSerialIn(char* input) {
 void handleSerialIn() {
   static char input[10];
   static char* inpPtr = input;
+
+  // Restrict input to now more than about 10 characters.
+  // Prevent flooding the device.
+  if(Serial.available() > (int)sizeof(input)) {
+    Serial.clear();
+  }
   
   // Check if data available
   while(Serial.available()) {
     // Get data 
     char c = Serial.read();
+    
+    if(c == '\r') 
+      break;   // Skip windows character
+      
     if(c == '\n') {
       // End found
       *inpPtr = 0;
-      inpPtr = input;
       // Decode input
       decodeSerialIn(input);
+      // Reset
+      inpPtr = input;
       break;
     }
     else {
-      // Input too long?
-      if(inpPtr > (input+sizeof(input)-1))
-        break;
       // Remember character
       *inpPtr = c;   
       inpPtr++;
+      // Input too long?
+      if(inpPtr > (input+sizeof(input)-1)) {
+        // Reset
+        inpPtr = input;
+        break;    
+      }
     }
   }
 }
