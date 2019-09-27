@@ -18,9 +18,6 @@ The features are:
 // Axis down/up: Pin 22/23 AR/AL
 // DOUT 0-3 = Pin 16-19
 
-// The pin used for poll-out. (Note: the built-in LED is pin 13)
-#define USB_POLL_OUT  14
-
 // Buttons start at this digital pin
 #define BUTTONS_PIN_OFFS 0    // Digital pin 0 is button 0
 
@@ -39,9 +36,17 @@ The features are:
 // Number of digital outs
 #define COUNT_DOUTS  4
 
+// Turn main LED on/off (Note: the built-in LED is pin 13).
+// Comment if you don't need this.
+#define MAIN_LED_PIN   LED_BUILTIN
+
+// Turn digital poll out pin (14) on/off.
+// Comment if you don't need this.
+#define USB_POLL_OUT_PIN  14
+
 
 // The debounce and minimal press- and release time of a button (in ms).
-uint16_t MIN_PRESS_TIME = 1; //25;
+uint16_t MIN_PRESS_TIME = 28;
 
 // *** CONFIGURATION END **************************************************
 
@@ -54,10 +59,6 @@ uint16_t MIN_PRESS_TIME = 1; //25;
 #define ASSERT(cond)  {if(!(cond)) error("LINE " TOSTRING(__LINE__) ": ASSERT(" #cond ")");}
 #define STRINGIFY(x) #x
 #define TOSTRING(x) STRINGIFY(x)
-
-// Turn main LED on/off
-#define MAIN_LED(on)    digitalWrite(LED_BUILTIN, on)
-//#define MAIN_LED(on)    
 
 
 
@@ -102,12 +103,16 @@ void error(const char* text) {
   Serial.println(text);
   // Endless loop
   while(true) {
-    MAIN_LED(false);
+#ifdef MAIN_LED_PIN
+    digitalWrite(MAIN_LED_PIN, false);
+#endif
     for(int i=0; i<COUNT_DOUTS; i++) {
       pinMode(DOUTS_PIN_OFFS+i, false);
     }
     delay(150);
-    MAIN_LED(true);
+#ifdef MAIN_LED_PIN
+    digitalWrite(MAIN_LED_PIN, true);
+#endif
     for(int i=0; i<COUNT_DOUTS; i++) {
       pinMode(DOUTS_PIN_OFFS+i, true);
     }
@@ -121,11 +126,14 @@ void error(const char* text) {
 
 // Handles the Output and LED to indicate the USB polling rate.
 void indicateUsbPollRate() {
+#ifdef USB_POLL_OUT_PIN
     // USB_POLL_OUT:
     static bool usbPollOut = false;
     usbPollOut = !usbPollOut;
-    digitalWrite(USB_POLL_OUT, usbPollOut);
+    digitalWrite(USB_POLL_OUT_PIN, usbPollOut);
+#endif
 
+#ifdef LED_MAIN_PIN
     // Main LED (poll time / 1000)
     static bool mainLedOut = false;
     static int mainLedCounter = 0;
@@ -133,9 +141,10 @@ void indicateUsbPollRate() {
     if(mainLedCounter < 0) {
       // toggle main LED
       mainLedOut = !mainLedOut;
-      MAIN_LED(mainLedOut);
+      digitalWrite(LED_MAIN_PIN, mainLedOut);
       mainLedCounter = 1000;
     }
+#endif
 }
 
 
@@ -144,7 +153,6 @@ void indicateUsbPollRate() {
 void handleButtons() {
   // Go through all buttons
   uint32_t mask = 0b00000001;
- // uint8_t input = PORTA;
   for(int i=0; i<COUNT_BUTTONS; i++) {
     
     // Check if button timer is 0
@@ -411,8 +419,12 @@ void setup() {
   noInterrupts();
   
   // Initialize pins
-  pinMode(LED_BUILTIN, OUTPUT);
-  pinMode(USB_POLL_OUT, OUTPUT);
+#ifdef MAIN_LED_PIN
+  pinMode(MAIN_LED_PIN, OUTPUT);
+#endif
+#ifdef USB_POLL_OUT_PIN
+  pinMode(USB_POLL_OUT_PIN, OUTPUT);
+#endif
 
   // Initialize buttons, axes and digital outs
   for(int i=0; i<COUNT_BUTTONS; i++) {
@@ -471,8 +483,6 @@ void loop() {
     while(TPM0_SC & FTM_SC_TOF)
       TPM0_SC |= FTM_SC_TOF; // spin wait
 
-    //digitalWrite(14, true);
- 
     // Handle poll interval output.
     indicateUsbPollRate();
 
@@ -487,9 +497,7 @@ void loop() {
 
     // For time measurement
     uint16_t timeStart = TPM0_CNT;
-    
-    //digitalWrite(14, false);
-   
+       
     // Handle joystick buttons and axis
     handleJoystick();  // about 30-40us
 
