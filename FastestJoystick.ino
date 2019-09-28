@@ -52,7 +52,7 @@ uint16_t MIN_PRESS_TIME = 28;
 
 
 // The SW version.
-#define SW_VERSION "0.6"
+#define SW_VERSION "0.8"
 
 
 // ASSERT macro
@@ -107,14 +107,14 @@ void error(const char* text) {
     digitalWrite(MAIN_LED_PIN, false);
 #endif
     for(int i=0; i<COUNT_DOUTS; i++) {
-      pinMode(DOUTS_PIN_OFFS+i, false);
+      analogWrite(DOUTS_PIN_OFFS+i, 255);
     }
     delay(150);
 #ifdef MAIN_LED_PIN
     digitalWrite(MAIN_LED_PIN, true);
 #endif
     for(int i=0; i<COUNT_DOUTS; i++) {
-      pinMode(DOUTS_PIN_OFFS+i, true);
+      analogWrite(DOUTS_PIN_OFFS+i, 0);
     }
     delay(50);
     
@@ -133,7 +133,7 @@ void indicateUsbPollRate() {
     digitalWrite(USB_POLL_OUT_PIN, usbPollOut);
 #endif
 
-#ifdef LED_MAIN_PIN
+#ifdef MAIN_LED_PIN
     // Main LED (poll time / 1000)
     static bool mainLedOut = false;
     static int mainLedCounter = 0;
@@ -141,7 +141,7 @@ void indicateUsbPollRate() {
     if(mainLedCounter < 0) {
       // toggle main LED
       mainLedOut = !mainLedOut;
-      digitalWrite(LED_MAIN_PIN, mainLedOut);
+      digitalWrite(MAIN_LED_PIN, mainLedOut);
       mainLedCounter = 1000;
     }
 #endif
@@ -268,7 +268,7 @@ uint16_t AsciiToUint(const char* s) {
 
 // Takes a string from serial in and decodes it.
 // Correct strings look like:
-// "o7=1" or "o3=0"
+// "o7=0" or "o3=80" or "o1=255" with 255=max and 0=off.
 // e.g. for setting ouput 7 to HIGH and output 3 to LOW.
 // On host die (linux or mac) you can use e.g.:
 // echo o0=1 > /dev/cu.usbXXXX
@@ -294,17 +294,23 @@ void decodeSerialIn(char* input) {
         return;
       }
     
-      // Get value
-      int value = input[3] - '0';
-      // Check
-      if(value < 0 || value > 1) {
-        if(usb_tx_packet_count(CDC_TX_ENDPOINT) == 0)
-          Serial.println("Error: value");
-        return;
+      // Get value [0;255]
+      char *digitPtr = &input[3];
+      int value = 0;
+      for(int k=0; k<3; k++) {  // max 3 digits
+        char digit = *digitPtr++;
+        if(digit == 0)
+          break;
+        if(digit < '0' || digit > '9') {
+          if(usb_tx_packet_count(CDC_TX_ENDPOINT) == 0)
+              Serial.println("Error: value");
+          return;
+        }
+        value = 10*value + digit-'0';
       }
     
       // Set pin
-      digitalWrite(DOUTS_PIN_OFFS+pin, value);
+      analogWrite(DOUTS_PIN_OFFS+pin, value);
       if(usb_tx_packet_count(CDC_TX_ENDPOINT) == 0) {
         Serial.print("DOUT");
         Serial.print(pin);
@@ -437,7 +443,17 @@ void setup() {
     pinMode(DOUTS_PIN_OFFS+i, OUTPUT);
   }
 
-    // Setup timer
+#if 0
+  // Test PWM
+  analogWrite(DOUTS_PIN_OFFS, 10);
+  analogWrite(DOUTS_PIN_OFFS+1, 10);
+  analogWrite(DOUTS_PIN_OFFS+2, 120); // digital
+  pinMode(DOUTS_PIN_OFFS, OUTPUT);
+digitalWrite(DOUTS_PIN_OFFS, true);
+digitalWrite(DOUTS_PIN_OFFS+1, true);
+#endif
+
+  // Setup timer
   MCG_C1 &= ~0b010; // Disable IRCLK
   MCG_SC &= ~0b01110; // Divider = 1 => 4MHz
   MCG_C2 |= 0b001;  // IRCS. fast internal reference clock enabled
