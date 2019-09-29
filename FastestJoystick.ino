@@ -21,11 +21,9 @@ The features are:
 // The buttons permutation table. Logical button ins [0;12] are mapped to physical pins.
 uint8_t buttonPins[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
 
-// Axes start at this digital pin
-#define AXES_PIN_OFFS 20    // Pins 20-23
-
-// Number of different joystick axes. At maximum 2 axes are supported.
-#define COUNT_AXES   2
+// The axes permutation table. Logical axes ins [0;12] are mapped to physical pins.
+// 2 entries form a pair, e.g. left/right or up/down
+uint8_t axesPins[] = { 20, 21,  22, 23 };
 
 // The digital out permutation table. Logical outs [0;3] are mapped to physical pins.
 uint8_t doutPins[] = { 16, 17, 18, 19 }; //22, 23 };  // Use pins capable of PWM
@@ -47,7 +45,7 @@ uint16_t MIN_PRESS_TIME = 28;
 
 
 // The SW version.
-#define SW_VERSION "0.8"
+#define SW_VERSION "0.9"
 
 
 // ASSERT macro
@@ -62,6 +60,9 @@ uint16_t MIN_PRESS_TIME = 28;
 
 // Number of total joystick buttons.
 #define COUNT_BUTTONS   ((uint8_t)sizeof(buttonPins))
+
+// Number of different joystick axes. (At maximum 2 axes are supported.)
+#define COUNT_AXES   ((uint8_t)sizeof(axesPins)/2)
 
 // Number of digital outs.
 #define COUNT_DOUTS  ((uint8_t)sizeof(doutPins))
@@ -198,8 +199,8 @@ void handleAxes() {
   // Go through all axes
   for(uint8_t i=0; i<COUNT_AXES; i++) {
     // Read buttons for the axis of the joystick
-    int axisLow = (digitalRead(AXES_PIN_OFFS+(i<<1)) == LOW) ? 0 : 512; // Active LOW
-    int axisHigh = (digitalRead(AXES_PIN_OFFS+(i<<1)+1) == LOW) ? 1023 : 512; // Active LOW
+    int axisLow = (digitalRead(axesPins[i<<1]) == LOW) ? 0 : 512; // Active LOW
+    int axisHigh = (digitalRead(axesPins[(i<<1)+1]) == LOW) ? 1023 : 512; // Active LOW
     
     // Check if axis timer is 0
     if(axesTimers[i] > JOYSTICK_INTERVAL) {
@@ -454,7 +455,7 @@ void setup() {
     pinMode(buttonPins[i], INPUT_PULLUP);
   }
   for(uint8_t i=0; i<2*COUNT_AXES; i++) {
-    pinMode(AXES_PIN_OFFS+i, INPUT_PULLUP);
+    pinMode(axesPins[i], INPUT_PULLUP);
   }
   for(uint8_t i=0; i<COUNT_DOUTS; i++) {
     pinMode(doutPins[i], OUTPUT);
