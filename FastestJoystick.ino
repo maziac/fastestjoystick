@@ -31,10 +31,11 @@ The features are:
 #define COUNT_AXES   2
 
 // Digital outputs start at this pin
-#define DOUTS_PIN_OFFS  16  // Pins 16-19
+//#define DOUTS_PIN_OFFS  16  // Pins 16-19
 
-// Number of digital outs
-#define COUNT_DOUTS  4
+// The digital out permutation table. Logical outs [0;3] are mapped to physical pins.
+uint8_t doutPins[] = { 16, 17, 18, 19 }; //22, 23 };  // Use pins capable of PWM
+
 
 // Turn main LED on/off (Note: the built-in LED is pin 13).
 // Comment if you don't need this.
@@ -63,6 +64,11 @@ uint16_t MIN_PRESS_TIME = 28;
 
 // The PWM frequency for the digital outs. Is set higher than the default to avoid flickering.
 #define DOUT_PWM_FREQUENCY    100 // In Hz
+
+
+// Number of digital outs
+#define COUNT_DOUTS  ((int)sizeof(doutPins)) //4
+
 
 // Timer values for all joystick buttons
 uint16_t buttonTimers[COUNT_BUTTONS] = {};
@@ -109,14 +115,14 @@ void error(const char* text) {
     digitalWrite(MAIN_LED_PIN, false);
 #endif
     for(int i=0; i<COUNT_DOUTS; i++) {
-      analogWrite(DOUTS_PIN_OFFS+i, 255);
+      analogWrite(doutPins[i], 255);
     }
     delay(150);
 #ifdef MAIN_LED_PIN
     digitalWrite(MAIN_LED_PIN, true);
 #endif
     for(int i=0; i<COUNT_DOUTS; i++) {
-      analogWrite(DOUTS_PIN_OFFS+i, 0);
+      analogWrite(doutPins[i], 0);
     }
     delay(50);
     
@@ -313,7 +319,7 @@ void decodeSerialIn(char* input) {
     
       // Set pin
       value = (value<<8)/100;
-      analogWrite(DOUTS_PIN_OFFS+pin, value);
+      analogWrite(doutPins[pin], value);
       if(usb_tx_packet_count(CDC_TX_ENDPOINT) == 0) {
         Serial.print("DOUT");
         Serial.print(pin);
@@ -444,11 +450,9 @@ void setup() {
     pinMode(AXES_PIN_OFFS+i, INPUT_PULLUP);
   }
   for(int i=0; i<COUNT_DOUTS; i++) {
-    pinMode(DOUTS_PIN_OFFS+i, OUTPUT);
-    analogWriteFrequency(DOUTS_PIN_OFFS+i, DOUT_PWM_FREQUENCY*1000/81); // Note: we have a factor here because the clock source will be changed
+    pinMode(doutPins[i], OUTPUT);
+    analogWriteFrequency(doutPins[i], DOUT_PWM_FREQUENCY*1000/81); // Note: we have a factor here because the clock source will be changed
   }
-
-    analogWrite(17, 153);
     
   // Setup timer
   MCG_C1 &= ~0b010; // Disable IRCLK
