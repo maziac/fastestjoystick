@@ -18,20 +18,14 @@ The features are:
 // Axis down/up: Pin 22/23 AR/AL
 // DOUT 0-3 = Pin 16-19
 
-// Buttons start at this digital pin
-#define BUTTONS_PIN_OFFS 0    // Digital pin 0 is button 0
-
-// Number of total joystick buttons.
-#define COUNT_BUTTONS   13    // Pins 0-12
+// The buttons permutation table. Logical button ins [0;12] are mapped to physical pins.
+uint8_t buttonPins[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
 
 // Axes start at this digital pin
 #define AXES_PIN_OFFS 20    // Pins 20-23
 
 // Number of different joystick axes. At maximum 2 axes are supported.
 #define COUNT_AXES   2
-
-// Digital outputs start at this pin
-//#define DOUTS_PIN_OFFS  16  // Pins 16-19
 
 // The digital out permutation table. Logical outs [0;3] are mapped to physical pins.
 uint8_t doutPins[] = { 16, 17, 18, 19 }; //22, 23 };  // Use pins capable of PWM
@@ -66,11 +60,14 @@ uint16_t MIN_PRESS_TIME = 28;
 #define DOUT_PWM_FREQUENCY    100 // In Hz
 
 
-// Number of digital outs
-#define COUNT_DOUTS  ((int)sizeof(doutPins)) //4
+// Number of total joystick buttons.
+#define COUNT_BUTTONS   ((uint8_t)sizeof(buttonPins))
+
+// Number of digital outs.
+#define COUNT_DOUTS  ((uint8_t)sizeof(doutPins))
 
 
-// Timer values for all joystick buttons
+// Timer values for all joystick buttons.
 uint16_t buttonTimers[COUNT_BUTTONS] = {};
 
 // The (previous) joystick button values.
@@ -161,7 +158,7 @@ void indicateUsbPollRate() {
 void handleButtons() {
   // Go through all buttons
   uint32_t mask = 0b00000001;
-  for(int i=0; i<COUNT_BUTTONS; i++) {
+  for(uint8_t i=0; i<COUNT_BUTTONS; i++) {
     
     // Check if button timer is 0
     if(buttonTimers[i] > JOYSTICK_INTERVAL) {
@@ -170,7 +167,7 @@ void handleButtons() {
     }
     else {
       // Timer is zero (i.e. below JOYSTICK_INTERVAL). Now check if the button state has changed.
-      uint32_t buttonValue = (digitalRead(BUTTONS_PIN_OFFS+i) == LOW) ? 1 : 0; // Active LOW
+      uint32_t buttonValue = (digitalRead(buttonPins[i]) == LOW) ? 1 : 0; // Active LOW
       buttonValue <<= i;
       if(buttonValue != (prevButtonsValue & mask)) {
         // Button value has changed
@@ -199,7 +196,7 @@ void handleAxes() {
   //int shift = 4+((COUNT_AXES-1)*10);;
   //uint32_t mask = (~0xFFFFC00F) << ((COUNT_AXES-1)*10);
   // Go through all axes
-  for(int i=0; i<COUNT_AXES; i++) {
+  for(uint8_t i=0; i<COUNT_AXES; i++) {
     // Read buttons for the axis of the joystick
     int axisLow = (digitalRead(AXES_PIN_OFFS+(i<<1)) == LOW) ? 0 : 512; // Active LOW
     int axisHigh = (digitalRead(AXES_PIN_OFFS+(i<<1)+1) == LOW) ? 1023 : 512; // Active LOW
@@ -265,10 +262,23 @@ void handleJoystick() {
 
 
 // Converts an ascii string into a number.
-uint16_t AsciiToUint(const char* s) {
+uint16_t asciiToUint(const char* s) {
   uint16_t value = 0;
-  while(char c = *s++) {
-    value = 10*value + c-'0';
+  uint8_t k=0;
+  while(char digit = *s++) {
+    // Check digit
+    if(digit < '0' || digit > '9') {
+      if(usb_tx_packet_count(CDC_TX_ENDPOINT) == 0)
+          Serial.println("Error: value");
+      return 0;
+    }
+    // check count of digits
+    if(++k > 5) {
+      if(usb_tx_packet_count(CDC_TX_ENDPOINT) == 0)
+        Serial.println("Error: too many digits");
+      return 65535;
+    }
+    value = 10*value + digit-'0';
   }
   return value;
 }
@@ -303,19 +313,7 @@ void decodeSerialIn(char* input) {
       }
     
       // Get value [0;100]
-      char *digitPtr = &input[3];
-      int value = 0;
-      for(int k=0; k<3; k++) {  // max 3 digits
-        char digit = *digitPtr++;
-        if(digit == 0)
-          break;
-        if(digit < '0' || digit > '9') {
-          if(usb_tx_packet_count(CDC_TX_ENDPOINT) == 0)
-              Serial.println("Error: value");
-          return;
-        }
-        value = 10*value + digit-'0';
-      }
+      int value = asciiToUint(&input[3]);
     
       // Set pin
       value = (value<<8)/100;
@@ -348,7 +346,7 @@ void decodeSerialIn(char* input) {
     // Change minimum press time
     case 'p':
     {
-      MIN_PRESS_TIME = AsciiToUint(&input[2]);
+      MIN_PRESS_TIME = asciiToUint(&input[2]);
       if(usb_tx_packet_count(CDC_TX_ENDPOINT) == 0) {
         Serial.print("Changing press time to ");
         Serial.print(MIN_PRESS_TIME);
@@ -390,7 +388,8 @@ void decodeSerialIn(char* input) {
 void handleSerialIn() {
   static char input[10];
   static char* inpPtr = input;
-
+  static bool skipLine = false;
+  
   // Restrict input to now more than about 10 characters.
   // Prevent flooding the device.
   if(Serial.available() > 3*(int)sizeof(input)) {
@@ -407,11 +406,15 @@ void handleSerialIn() {
       
     if(c == '\n') {
       // End found
-      *inpPtr = 0;
-      // Decode input
-      decodeSerialIn(input);
+      // Check for skip
+      if(!skipLine) {
+        *inpPtr = 0;
+        // Decode input
+        decodeSerialIn(input);
+      }
       // Reset
       inpPtr = input;
+      skipLine = false;
       break;
     }
     else {
@@ -420,8 +423,12 @@ void handleSerialIn() {
       inpPtr++;
       // Input too long?
       if(inpPtr > (input+sizeof(input)-1)) {
+        // Print warning
+        if(usb_tx_packet_count(CDC_TX_ENDPOINT) == 0)
+          Serial.println("Error: Line too long.");
         // Reset
         inpPtr = input;
+        skipLine = true;
         break;    
       }
     }
@@ -443,13 +450,13 @@ void setup() {
 #endif
 
   // Initialize buttons, axes and digital outs
-  for(int i=0; i<COUNT_BUTTONS; i++) {
-    pinMode(BUTTONS_PIN_OFFS+i, INPUT_PULLUP);
+  for(uint8_t i=0; i<COUNT_BUTTONS; i++) {
+    pinMode(buttonPins[i], INPUT_PULLUP);
   }
-  for(int i=0; i<2*COUNT_AXES; i++) {
+  for(uint8_t i=0; i<2*COUNT_AXES; i++) {
     pinMode(AXES_PIN_OFFS+i, INPUT_PULLUP);
   }
-  for(int i=0; i<COUNT_DOUTS; i++) {
+  for(uint8_t i=0; i<COUNT_DOUTS; i++) {
     pinMode(doutPins[i], OUTPUT);
     analogWriteFrequency(doutPins[i], DOUT_PWM_FREQUENCY*1000/81); // Note: we have a factor here because the clock source will be changed
   }
