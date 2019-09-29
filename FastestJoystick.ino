@@ -317,8 +317,8 @@ void decodeSerialIn(char* input) {
       int value = asciiToUint(&input[3]);
     
       // Set pin
-      value = (value<<8)/100;
-      analogWrite(doutPins[pin], value);
+      int dValue = (value<<8)/100;
+      analogWrite(doutPins[pin], dValue);
       if(usb_tx_packet_count(CDC_TX_ENDPOINT) == 0) {
         Serial.print("DOUT");
         Serial.print(pin);
@@ -391,9 +391,9 @@ void handleSerialIn() {
   static char* inpPtr = input;
   static bool skipLine = false;
   
-  // Restrict input to now more than about 10 characters.
+  // Restrict input to no more than 50 characters.
   // Prevent flooding the device.
-  if(Serial.available() > 3*(int)sizeof(input)) {
+  if(Serial.available() > 50) {
     Serial.clear();
   }
   
@@ -483,8 +483,6 @@ void setup() {
 
   // Empty serial in
   Serial.clear();
-
-
 }
 
 
