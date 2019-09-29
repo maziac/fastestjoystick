@@ -61,6 +61,8 @@ uint16_t MIN_PRESS_TIME = 28;
 #define TOSTRING(x) STRINGIFY(x)
 
 
+// The PWM frequency for the digital outs. Is set higher than the default to avoid flickering.
+#define DOUT_PWM_FREQUENCY    100 // In Hz
 
 // Timer values for all joystick buttons
 uint16_t buttonTimers[COUNT_BUTTONS] = {};
@@ -294,7 +296,7 @@ void decodeSerialIn(char* input) {
         return;
       }
     
-      // Get value [0;255]
+      // Get value [0;100]
       char *digitPtr = &input[3];
       int value = 0;
       for(int k=0; k<3; k++) {  // max 3 digits
@@ -310,6 +312,7 @@ void decodeSerialIn(char* input) {
       }
     
       // Set pin
+      value = (value<<8)/100;
       analogWrite(DOUTS_PIN_OFFS+pin, value);
       if(usb_tx_packet_count(CDC_TX_ENDPOINT) == 0) {
         Serial.print("DOUT");
@@ -370,6 +373,7 @@ void decodeSerialIn(char* input) {
         Serial.print("Error: Unknown command: ");
         Serial.println(input);
       }
+      Serial.clear();
     break; 
   }   
 }
@@ -383,7 +387,7 @@ void handleSerialIn() {
 
   // Restrict input to now more than about 10 characters.
   // Prevent flooding the device.
-  if(Serial.available() > (int)sizeof(input)) {
+  if(Serial.available() > 3*(int)sizeof(input)) {
     Serial.clear();
   }
   
@@ -441,18 +445,11 @@ void setup() {
   }
   for(int i=0; i<COUNT_DOUTS; i++) {
     pinMode(DOUTS_PIN_OFFS+i, OUTPUT);
+    analogWriteFrequency(DOUTS_PIN_OFFS+i, DOUT_PWM_FREQUENCY*1000/81); // Note: we have a factor here because the clock source will be changed
   }
 
-#if 0
-  // Test PWM
-  analogWrite(DOUTS_PIN_OFFS, 10);
-  analogWrite(DOUTS_PIN_OFFS+1, 10);
-  analogWrite(DOUTS_PIN_OFFS+2, 120); // digital
-  pinMode(DOUTS_PIN_OFFS, OUTPUT);
-digitalWrite(DOUTS_PIN_OFFS, true);
-digitalWrite(DOUTS_PIN_OFFS+1, true);
-#endif
-
+    analogWrite(17, 153);
+    
   // Setup timer
   MCG_C1 &= ~0b010; // Disable IRCLK
   MCG_SC &= ~0b01110; // Divider = 1 => 4MHz
@@ -470,6 +467,12 @@ digitalWrite(DOUTS_PIN_OFFS+1, true);
 
   // When this is reached the overflow flag is set. (In us).
   TPM0_MOD = 900; // 1000us = 1ms
+
+
+  // Empty serial in
+  Serial.clear();
+
+
 }
 
 
