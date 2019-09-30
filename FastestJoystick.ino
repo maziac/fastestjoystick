@@ -111,8 +111,6 @@ void loop() {
   // Make sure that no USB packet is in the queue
   while(usb_tx_packet_count(JOYSTICK_ENDPOINT) > 0);
 
-  setDout(0, 0, 3000, 100);
- 
   // Endless loop
   while(true) {
  

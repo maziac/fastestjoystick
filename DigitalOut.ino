@@ -17,10 +17,10 @@ enum DOUT_STATE {
 // The state variable for each digital out.
 struct DoutState {
   uint8_t state;  // DOUT_STATE
-  uint8_t brightness; // The last set value.
-  uint16_t wait;  // Wait time in ms.
+  uint16_t brightness; // The last set value.
+  uint16_t delay;  // Delay time in ms.
   uint16_t attack;  // Attack time in ms.
-  uint16_t deltaBrightness;  // During attack this is added to brightness in each step.
+  int16_t deltaBrightness;  // During attack this is added to brightness in each step.
   uint16_t endBrightness; // The resulting brightness.
 };
 
@@ -44,25 +44,44 @@ void initDout() {
 //  - the time it takes to change form current brightness to given brightness.
 //  - the end brightness.
 // dout: the index of the digital out.
-// waitMs: The time to wait before next state (in ms).
+// delayMs: The time to wait before next state (in ms).
 // attackMs: The time to wait before next state (in ms).
 // brightness: The brightness [0;100] after 'attack'.
-void setDout(uint8_t dout, uint16_t waitMs, int attackMs, int brightness) {
+void setDout(uint8_t dout, int brightness, int attackMs, uint16_t delayMs) {
   DoutState* statePtr = &doutState[dout];
   statePtr->state = WAIT;
-  statePtr->wait = waitMs;
+  statePtr->delay = delayMs;
   statePtr->attack = attackMs;
-  statePtr->deltaBrightness = ((statePtr->endBrightness - statePtr->brightness)<<8)/ statePtr->attack;
+  statePtr->endBrightness = 0; // REMOVE
   statePtr->endBrightness = (brightness*65535l)/100;
-    analogWrite(doutPins[0], statePtr->endBrightness >> 8);    // REMOVE!
+  statePtr->deltaBrightness = (statePtr->endBrightness - statePtr->brightness)/statePtr->attack;
+
+  // Give feedback
+  if(usb_tx_packet_count(CDC_TX_ENDPOINT) == 0) {
+    Serial.print("DOUT");
+    Serial.print(dout);
+    Serial.print(" (Pin=");
+    Serial.print(doutPins[dout]);
+    Serial.print(") set to ");
+    Serial.print(brightness);
+    if(attackMs) {
+      Serial.print(", attack=");
+      Serial.print(attackMs);
+      Serial.print("ms");
+    }
+    if(delayMs) {
+      Serial.print(", delay=");
+      Serial.print(delayMs);
+      Serial.print("ms");
+    }
+    Serial.println();
+  }
 }
 
 
 // Handles the output to the digital outs.
 // I.e. controls the wait and attack time and also the sustain level.
-void handleDout() {
-  return;
-  
+void handleDout() {  
   DoutState* statePtr = doutState;
  
   for(uint8_t i=0; i<COUNT_DOUTS; i++) { 
@@ -70,8 +89,8 @@ void handleDout() {
     switch(statePtr->state) {
       case WAIT: 
         // Decrement time (1ms each turn).
-        if(statePtr->wait > 0)
-          statePtr->wait --;
+        if(statePtr->delay > 0)
+          statePtr->delay--;
         else {
           // Wait time is over, start 'attack'
           statePtr->state = ATTACK;
@@ -89,6 +108,7 @@ L_ATTACK:
           // Control brightness
           uint16_t b = statePtr->brightness;
           if(statePtr->deltaBrightness >= 0) {
+            b += statePtr->deltaBrightness;
             if(b < statePtr->deltaBrightness) {
               // Overflow happened
               b = 0xFFFFu;
@@ -103,7 +123,7 @@ L_ATTACK:
               b += statePtr->deltaBrightness;
           }
           statePtr->brightness = b;
-        }
+       }
         else {
           // Attack time is over -> SUSTAIN
           statePtr->state = SUSTAIN;

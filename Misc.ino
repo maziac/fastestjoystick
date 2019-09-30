@@ -62,24 +62,27 @@ void indicateUsbPollRate() {
 
 
 // Converts an ascii string into a number.
-uint16_t asciiToUint(const char* s) {
+// Returns the value and also the string pointer to the first
+// non-digit character.
+uint16_t asciiToUint(const char** s) {
+  const char* ptr = *s;
   uint16_t value = 0;
   uint8_t k=0;
-  while(char digit = *s++) {
+  while(char digit = *ptr) {
     // Check digit
     if(digit < '0' || digit > '9') {
-      if(usb_tx_packet_count(CDC_TX_ENDPOINT) == 0)
-          Serial.println("Error: value");
-      return 0;
+      break;
     }
     // check count of digits
     if(++k > 5) {
       if(usb_tx_packet_count(CDC_TX_ENDPOINT) == 0)
         Serial.println("Error: too many digits");
-      return 65535;
+      value = 65535;
+      break;
     }
     value = 10*value + digit-'0';
+    ptr++;
   }
+  *s = ptr;
   return value;
 }
-

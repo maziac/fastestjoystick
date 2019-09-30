@@ -2,7 +2,7 @@
 // Handles the serial input.
 // Via serial-in some digital output pins can be driven, e.g. for LED light of the buttons.
 void handleSerialIn() {
-  static char input[10];
+  static char input[20];  // o12=100,65535,65535 -> 19
   static char* inpPtr = input;
   static bool skipLine = false;
   
@@ -55,9 +55,9 @@ void handleSerialIn() {
 // Takes a string from serial in and decodes it.
 // Correct strings look like:
 // "o7=0" or "o3=80" or "o1=255" with 255=max and 0=off.
-// e.g. for setting ouput 7 to HIGH and output 3 to LOW.
+// e.g. for setting ouput 7 to 70% brightness with an attack time of 2000ms and a delay of 1000ms.
 // On host die (linux or mac) you can use e.g.:
-// echo o0=1 > /dev/cu.usbXXXX
+// echo o0=70,2000,1000 > /dev/cu.usbXXXX
 // Supported commands are:
 // oN=X : Set output N to X (0 or 1)
 // r : Reset
@@ -72,28 +72,30 @@ void decodeSerialIn(char* input) {
     case 'o':
     {
       // Get output
-      int pin = input[1] - '0';
+      int index = input[1] - '0';
       // Check
-      if(pin < 0 || pin >= COUNT_DOUTS) {
+      if(index < 0 || index >= COUNT_DOUTS) {
         if(usb_tx_packet_count(CDC_TX_ENDPOINT) == 0)
-          Serial.println("Error: pin");
+          Serial.println("Error: index");
         break;
       }
     
       // Get value [0;100]
-      int value = asciiToUint(&input[3]);
+      const char* inp = &input[3];
+      int value = asciiToUint(&inp);
     
-      // Set pin
-      int dValue = (value<<8)/100;
-      analogWrite(doutPins[pin], dValue);
-      if(usb_tx_packet_count(CDC_TX_ENDPOINT) == 0) {
-        Serial.print("DOUT");
-        Serial.print(pin);
-        Serial.print(" (Pin=");
-        Serial.print(pin);
-        Serial.print(") set to ");
-        Serial.println(value);
+      // Get attack time
+      uint16_t attackTime = 0;
+      uint16_t delayTime = 0;
+      if(*inp++ == ',') {
+        attackTime = asciiToUint(&inp);
+        // Get delay time
+        if(*inp++ == ',') 
+           delayTime = asciiToUint(&inp);
       }
+      
+      // Set pin
+      setDout(index, value, attackTime, delayTime);
     }
     break;    
       
@@ -114,7 +116,8 @@ void decodeSerialIn(char* input) {
     // Change minimum press time
     case 'p':
     {
-      MIN_PRESS_TIME = asciiToUint(&input[2]);
+      const char* inp = &input[2];
+      MIN_PRESS_TIME = asciiToUint(&inp);
       if(usb_tx_packet_count(CDC_TX_ENDPOINT) == 0) {
         Serial.print("Changing press time to ");
         Serial.print(MIN_PRESS_TIME);
