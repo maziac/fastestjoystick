@@ -1,3 +1,5 @@
+//#include <usb_desc.h>
+
 
 // Handles the serial input.
 // Via serial-in some digital output pins can be driven, e.g. for LED light of the buttons.
@@ -8,9 +10,11 @@ void handleSerialIn() {
   
   // Restrict input to no more than 50 characters.
   // Prevent flooding the device.
+#if 01
   if(Serial.available() > 50) {
     Serial.clear();
   }
+#endif
   
   // Check if data available
   while(Serial.available()) {
@@ -40,7 +44,7 @@ void handleSerialIn() {
       // Input too long?
       if(inpPtr > (input+sizeof(input)-1)) {
         // Print warning
-        if(usb_tx_packet_count(CDC_TX_ENDPOINT) == 0)
+        if(serialTxPacketCount() == 0)
           Serial.println("Error: Line too long.");
         // Reset
         inpPtr = input;
@@ -75,7 +79,7 @@ void decodeSerialIn(char* input) {
       int index = input[1] - '0';
       // Check
       if(index < 0 || index >= COUNT_DOUTS) {
-        if(usb_tx_packet_count(CDC_TX_ENDPOINT) == 0)
+        if(serialTxPacketCount() == 0)
           Serial.println("Error: index");
         break;
       }
@@ -118,7 +122,7 @@ void decodeSerialIn(char* input) {
     {
       const char* inp = &input[2];
       MIN_PRESS_TIME = asciiToUint(&inp);
-      if(usb_tx_packet_count(CDC_TX_ENDPOINT) == 0) {
+      if(serialTxPacketCount() == 0) {
         Serial.print("Changing press time to ");
         Serial.print(MIN_PRESS_TIME);
         Serial.println("ms");
@@ -128,7 +132,7 @@ void decodeSerialIn(char* input) {
     
     // Change minimum press time
     case 'i':
-     if(usb_tx_packet_count(CDC_TX_ENDPOINT) == 0) {
+     if(serialTxPacketCount() == 0) {
         Serial.println("Version: " SW_VERSION);
         Serial.print("Min. press time:    ");Serial.print(MIN_PRESS_TIME);Serial.println("ms");
         Serial.print("Max. time serial:   ");Serial.print(maxTimeSerial);Serial.println("us");
@@ -148,11 +152,18 @@ void decodeSerialIn(char* input) {
       
     // Unknown command
     default:
-     if(usb_tx_packet_count(CDC_TX_ENDPOINT) == 0) {
+     if(serialTxPacketCount() == 0) {
         Serial.print("Error: Unknown command: ");
         Serial.println(input);
       }
       Serial.clear();
     break; 
   }   
+}
+
+
+// Returns the number of tx packets in the buffer.
+int serialTxPacketCount() {
+  return usb_tx_packet_count(CDC_TX_ENDPOINT);
+//  return usb_tx_packet_count(SEREMU_TX_ENDPOINT);
 }

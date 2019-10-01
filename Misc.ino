@@ -75,7 +75,7 @@ uint16_t asciiToUint(const char** s) {
     }
     // check count of digits
     if(++k > 5) {
-      if(usb_tx_packet_count(CDC_TX_ENDPOINT) == 0)
+      if(serialTxPacketCount() == 0)
         Serial.println("Error: too many digits");
       value = 65535;
       break;

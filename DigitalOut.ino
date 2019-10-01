@@ -57,7 +57,7 @@ void setDout(uint8_t dout, int brightness, int attackMs, uint16_t delayMs) {
   statePtr->deltaBrightness = (statePtr->endBrightness - statePtr->brightness)/statePtr->attack;
 
   // Give feedback
-  if(usb_tx_packet_count(CDC_TX_ENDPOINT) == 0) {
+  if(serialTxPacketCount() == 0) {
     Serial.print("DOUT");
     Serial.print(dout);
     Serial.print(" (Pin=");
