@@ -79,25 +79,9 @@ void setup() {
   // Initialize buttons, axes and digital outs
   initJoystick();
   initDout();
-    
+
   // Setup timer
-  MCG_C1 &= ~0b010; // Disable IRCLK
-  MCG_SC &= ~0b01110; // Divider = 1 => 4MHz
-  MCG_C2 |= 0b001;  // IRCS. fast internal reference clock enabled
-  MCG_C1 |= 0b010;  // IRCLKEN = enabled
-  
-  // Clock source
-  SIM_SOPT2 |= 0b00000011000000000000000000000000;  // MCGIRCLK
-
-  // Prescaler: 4 -> 4MHz/4 = 1MHz => 1us
-  while (0 != (TPM0_SC & 0b00001000))
-    TPM0_SC = 0;  // spin wait 
-  TPM0_SC |= 0b00000010;  // Prescaler /4 = 1Mhz
-  TPM0_SC |= 0b00001000;  // Enable timer
-
-  // When this is reached the overflow flag is set. (In us).
-  TPM0_MOD = 900; // 1000us = 1ms
-
+  setupTimer();
 
   // Empty serial in
 //  Serial.clear();
@@ -142,23 +126,23 @@ void loop() {
     // Handle digital out
     handleDout();
 
-    // Measure time
-    if(TPM0_CNT > maxTimeSerial)  maxTimeSerial = TPM0_CNT;   
+    // Measure time 
+   if(GetTime() > maxTimeSerial)  maxTimeSerial = GetTime();   
 
     // Wait some time
-    while(TPM0_CNT < 800);
+    while(GetTime() < 800);
 
     // For time measurement
-    uint16_t timeStart = TPM0_CNT;
+    uint16_t timeStart = GetTime();
        
     // Handle joystick buttons and axis
     handleJoystick();  // about 30-40us
 
     // Measure time
-    if(TPM0_CNT > maxTimeTotal)  maxTimeTotal = TPM0_CNT;   
-    if(TPM0_CNT-timeStart > maxTimeJoystick)  maxTimeJoystick = TPM0_CNT-timeStart;   
+    if(GetTime() > maxTimeTotal)  maxTimeTotal = GetTime();   
+    if(GetTime()-timeStart > maxTimeJoystick)  maxTimeJoystick = GetTime()-timeStart;   
 
     // Check that routines did not take too long (no overflow)
-    ASSERT(!(TPM0_SC & FTM_SC_TOF));
+    ASSERT(!isTimerOverflow());
   }
 }
