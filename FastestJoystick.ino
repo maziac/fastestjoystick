@@ -46,7 +46,7 @@ uint16_t MIN_PRESS_TIME = 28;
 
 
 // The SW version.
-#define SW_VERSION "0.10"
+#define SW_VERSION "0.11"
 
 
 // ASSERT macro
@@ -100,7 +100,7 @@ void setup() {
 
 
   // Empty serial in
-  Serial.clear();
+//  Serial.clear();
 }
 
 
@@ -108,8 +108,9 @@ void setup() {
 
 // MAIN LOOP
 void loop() {
+
   // Make sure that no USB packet is in the queue
-  while(usb_tx_packet_count(JOYSTICK_ENDPOINT) > 0);
+  //while(usb_tx_packet_count(JOYSTICK_ENDPOINT) > 0);
 
   // Endless loop
   while(true) {
@@ -119,15 +120,18 @@ void loop() {
   
     // Prepare USB packet (note: this should immediately return as the packet queue is empty at this point.
     usb_joystick_send();
-  
+
+    // Wait on poll at max. double the poll time, then check for serial input.
+   // clearTimer(2000 * JOYSTICK_INTERVAL);
+    
     // Wait on USB poll
-    while(usb_tx_packet_count(JOYSTICK_ENDPOINT) > 0);
+    while(usb_tx_packet_count(JOYSTICK_ENDPOINT) > 0) {
+      // Handle serial, otherwise no input/ouput is possible if no joystick consumer is listening on Linux.
+      handleSerialIn();
+    }
  
     // Restart timer 0  
-    TPM0_CNT = 0; 
-    // Clear overflow
-    while(TPM0_SC & FTM_SC_TOF)
-      TPM0_SC |= FTM_SC_TOF; // spin wait
+    clearTimer(900);
 
     // Handle poll interval output.
     indicateUsbPollRate();
