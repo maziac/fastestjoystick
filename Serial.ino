@@ -56,7 +56,7 @@ while(Serial.available()) {
       if(inpPtr > (input+sizeof(input)-1)) {
         // Print warning
         if(serialTxPacketCount() == 0)
-          serialPrintln("Error: Line too long.\n");
+          serialPrint("Error: Line too long.\n");
         // Reset
         inpPtr = input;
         skipLine = true;
@@ -92,7 +92,7 @@ void decodeSerialIn(char* input) {
       // Check
       if(index < 0 || index >= COUNT_DOUTS) {
         if(serialTxPacketCount() == 0)
-          serialPrintln("Error: index\n");
+          serialPrint("Error: index\n");
         break;
       }
     
@@ -117,7 +117,7 @@ void decodeSerialIn(char* input) {
       
     // Reset
     case 'r':
-      serialPrintln("Resetting\n");
+      serialPrint("Resetting\n");
       delay(2000);
 #define RESTART_ADDR 0xE000ED0C
 #define WRITE_RESTART(val) ((*(volatile uint32_t *)RESTART_ADDR) = (val))
@@ -137,7 +137,7 @@ void decodeSerialIn(char* input) {
       if(serialTxPacketCount() == 0) {
         serialPrint("Changing press time to ");
         serialPrint(MIN_PRESS_TIME);
-        serialPrintln("ms\n");
+        serialPrint("ms\n");
       }
     }
     break;
@@ -202,6 +202,41 @@ int serialTxPacketCount() {
 void serialPrint(const char* s) {
   if(DEBUG)
     Serial.print(s);
+}
+
+void serialPrint(char c) {
+  if(DEBUG)
+    Serial.print(c);
+}
+
+void serialPrint(uint8_t v) {
+  if(DEBUG)
+    Serial.print(v);
+}
+
+void serialPrint(uint16_t v) {
+  if(DEBUG)
+    Serial.print(v);
+}
+
+void serialPrint(int v) {
+  if(DEBUG)
+    Serial.print(v);
+}
+
+void serialPrint(int8_t v) {
+  if(DEBUG)
+    Serial.print(v);
+}
+
+void serialPrint(int16_t v) {
+  if(DEBUG)
+    Serial.print(v);
+}
+
+void serialPrint(bool b) {
+  if(DEBUG)
+    Serial.print(b);
 }
 
 void serialPrintln() {
