@@ -46,11 +46,11 @@ uint16_t MIN_PRESS_TIME = 28;
 
 
 // The SW version.
-#define SW_VERSION "0.11"
+#define SW_VERSION "0.12"
 
 
 // Uncomment to allow logging.
-#define ENABLE_LOGGING
+//#define ENABLE_LOGGING
 
 // ASSERT macro
 #define ASSERT(cond)  {if(!(cond)) error(__FILE__ ", LINE " TOSTRING(__LINE__) ": ASSERT(" #cond ")");}
@@ -117,7 +117,6 @@ void loop() {
     
     // Wait on USB poll
     while(usb_tx_packet_count(JOYSTICK_ENDPOINT) > 0) {
-#if 01
       if(isTimerOverflow()) {
         // Wait for 1ms
         clearTimer(1000 * JOYSTICK_INTERVAL);
@@ -128,44 +127,28 @@ void loop() {
         // Wait until 1ms is over.
         while(!isTimerOverflow() && usb_tx_packet_count(JOYSTICK_ENDPOINT) > 0);
       }
-#endif
     }
  
     // Restart timer 0  
     clearTimer(1000*JOYSTICK_INTERVAL-JOYSTICK_POLL_JITTER); // ie. 900us
-  //clearTimer(700);
-ASSERT(!isTimerOverflow());
 
     // Handle poll interval output.
     indicateUsbJoystickPollRate();
-ASSERT(!isTimerOverflow());
 
     // Handle serial in
     handleSerialIn();
-ASSERT(!isTimerOverflow()); // Here gibt es Timer overflow
 
     // Handle digital out
     handleDout();
-ASSERT(!isTimerOverflow());
 
     // Measure time 
     if(GetTime() > maxTimeSerial)  maxTimeSerial = GetTime();   
-     
-     ASSERT(!isTimerOverflow());
-     
+    
     // Wait some time
     while(GetTime() < 1000*JOYSTICK_INTERVAL-JOYSTICK_DELAY); // ie. 800us
-
      
     // For time measurement
     uint16_t timeStart = GetTime();
-       
-     
-     if(isTimerOverflow()) {
-       if(GetTime() > maxTimeTotal)  maxTimeTotal = GetTime();   
-       if(GetTime()-timeStart > maxTimeJoystick)  maxTimeJoystick = GetTime()-timeStart;   
-       error("Overflow y");
-     }
      
     // Handle joystick buttons and axis
     handleJoystick();  // about 30-40us
@@ -175,11 +158,6 @@ ASSERT(!isTimerOverflow());
     if(GetTime()-timeStart > maxTimeJoystick)  maxTimeJoystick = GetTime()-timeStart;   
 
     // Check that routines did not take too long (no overflow)
-//    ASSERT(!isTimerOverflow());
-     if(isTimerOverflow()) {
-       if(GetTime() > maxTimeTotal)  maxTimeTotal = GetTime();   
-       if(GetTime()-timeStart > maxTimeJoystick)  maxTimeJoystick = GetTime()-timeStart;   
-       error("Overflow e");
-     }
+    ASSERT(!isTimerOverflow());
   }
 }

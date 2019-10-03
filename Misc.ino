@@ -53,6 +53,10 @@ void printLog() {
 void error(const char* text) {
   // Save error
   strcpy(lastError, text);
+  // In debugmode ignore errors (ASSERTS)
+  if(DEBUG)
+    return;
+    
   // Print text to serial
   serialPrint(text);
   serialPrintln();

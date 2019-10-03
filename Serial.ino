@@ -30,8 +30,10 @@ while(Serial.available()) {
   while(Serial.available()) {
     // Get data 
     char c = Serial.read();
+#ifdef ENABLE_LOGGING
     logChar(c);
-    
+#endif
+
     if(c == '\r') 
       break;   // Skip windows character
       
@@ -145,15 +147,21 @@ void decodeSerialIn(char* input) {
     // Change minimum press time
     case 'i':
       if(serialTxPacketCount() == 0) {
+        bool prevDbg = DEBUG;
+        DEBUG = true;
         serialPrint("Version: " SW_VERSION "\n");
         serialPrint("Min. press time:    ");serialPrint(MIN_PRESS_TIME);serialPrint("ms\n");
         serialPrint("Max. time serial:   ");serialPrint(maxTimeSerial);serialPrint("us\n");
         serialPrint("Max. time joystick: ");serialPrint(maxTimeJoystick);serialPrint("us\n");
         serialPrint("Max. time total:    ");serialPrint(maxTimeTotal);serialPrint("us\n");
         serialPrint("Last error: ");serialPrint(lastError);serialPrintln();
+        serialPrint("Debug Mode: ");
+        serialPrint(prevDbg ? "ON" : "OFF");
+        serialPrintln();
 #ifdef ENABLE_LOGGING
         printLog();
 #endif
+        DEBUG = prevDbg;
       }
       // Reset times
       maxTimeSerial = 0;
@@ -164,7 +172,7 @@ void decodeSerialIn(char* input) {
     // Turn debug mode ON/OFF. Debug mode enables serial printing.
     case 'd':
     {
-      bool on = (input[2] != 0);
+      bool on = (input[2] != '0');
       DEBUG = true;
       serialPrint("Debug Mode=");
       serialPrint(on ? "ON" : "OFF");
