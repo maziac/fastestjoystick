@@ -57,7 +57,7 @@ void setDout(uint8_t dout, int brightness, int attackMs, uint16_t delayMs) {
   statePtr->deltaBrightness = (statePtr->endBrightness - statePtr->brightness)/statePtr->attack;
 
   // Give feedback
-  if(serialTxPacketCount() == 0) {
+  if(serialPrintAllowed()) {
     serialPrint("DOUT");
     serialPrint(dout);
     serialPrint(" (Pin=");

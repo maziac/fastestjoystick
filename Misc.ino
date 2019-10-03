@@ -122,7 +122,7 @@ uint16_t asciiToUint(const char** s) {
     }
     // check count of digits
     if(++k > 5) {
-      if(serialTxPacketCount() == 0) {
+      if(serialPrintAllowed()) {
         serialPrint("Error: too many digits");
         serialPrintln();
       }

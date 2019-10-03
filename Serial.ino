@@ -57,7 +57,7 @@ while(Serial.available()) {
       // Input too long?
       if(inpPtr > (input+sizeof(input)-1)) {
         // Print warning
-        if(serialTxPacketCount() == 0)
+        if(serialPrintAllowed())
           serialPrint("Error: Line too long.\n");
         // Reset
         inpPtr = input;
@@ -93,7 +93,7 @@ void decodeSerialIn(char* input) {
       int index = input[1] - '0';
       // Check
       if(index < 0 || index >= COUNT_DOUTS) {
-        if(serialTxPacketCount() == 0)
+        if(serialPrintAllowed())
           serialPrint("Error: index\n");
         break;
       }
@@ -136,7 +136,7 @@ void decodeSerialIn(char* input) {
     {
       const char* inp = &input[2];
       MIN_PRESS_TIME = asciiToUint(&inp);
-      if(serialTxPacketCount() == 0) {
+      if(serialPrintAllowed()) {
         serialPrint("Changing press time to ");
         serialPrint(MIN_PRESS_TIME);
         serialPrint("ms\n");
@@ -146,7 +146,7 @@ void decodeSerialIn(char* input) {
     
     // Change minimum press time
     case 'i':
-      if(serialTxPacketCount() == 0) {
+      if(serialPrintAllowed()) {
         bool prevDbg = DEBUG;
         DEBUG = true;
         serialPrint("Version: " SW_VERSION "\n");
@@ -187,7 +187,7 @@ void decodeSerialIn(char* input) {
       
     // Unknown command
     default:
-     if(serialTxPacketCount() == 0) {
+     if(serialPrintAllowed()) {
         serialPrint("Error: Unknown command: ");
         serialPrint(input);serialPrintln();
       }
@@ -197,11 +197,12 @@ void decodeSerialIn(char* input) {
 }
 
 
-// Returns the number of tx packets in the buffer.
-int serialTxPacketCount() {
-    return 0;   // Testen, ob ich auf die Funktion verzichten kann.
-  return usb_tx_packet_count(CDC_TX_ENDPOINT);
-//  return usb_tx_packet_count(SEREMU_TX_ENDPOINT);
+// Returns true if printing is allowed.
+// Used to put several prints in a block.
+inline bool serialPrintAllowed() {
+    return DEBUG;
+//  return usb_tx_packet_count(CDC_TX_ENDPOINT) == 0;
+//  return usb_tx_packet_count(SEREMU_TX_ENDPOINT) == 0;
 }
 
 
