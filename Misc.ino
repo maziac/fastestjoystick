@@ -31,24 +31,15 @@ void printLog() {
   if(endPrintPtr < logString)
     endPrintPtr = logString + sizeof(logString);
     
-  Serial.print("Log: ");
+  serialPrint("Log: ");
   while(char c = *printPtr++) {
     if(printPtr == endPrintPtr)
       break;
     if(printPtr >= logString + sizeof(logString))
       printPtr = logString;   
-    Serial.print(c);
+    serialPrint(c);
   }
-  Serial.println();
-    
- /* 
-  char* pLog = logString;
-  while(pLog < logPtr) {
-    Serial.print("  ");Serial.print(*pLog);
-    Serial.print(": ");Serial.println((int)*pLog);
-    pLog++;
-  }
-  */
+  serialPrintln();
 }
 
 #endif
@@ -63,7 +54,8 @@ void error(const char* text) {
   // Save error
   strcpy(lastError, text);
   // Print text to serial
-  Serial.println(text);
+  serialPrint(text);
+  serialPrintln();
   // Endless loop
   while(true) {
 #ifdef MAIN_LED_PIN
@@ -126,8 +118,10 @@ uint16_t asciiToUint(const char** s) {
     }
     // check count of digits
     if(++k > 5) {
-      if(serialTxPacketCount() == 0)
-        Serial.println("Error: too many digits");
+      if(serialTxPacketCount() == 0) {
+        serialPrint("Error: too many digits");
+        serialPrintln();
+      }
       value = 65535;
       break;
     }

@@ -56,7 +56,7 @@ while(Serial.available()) {
       if(inpPtr > (input+sizeof(input)-1)) {
         // Print warning
         if(serialTxPacketCount() == 0)
-          Serial.println("Error: Line too long.");
+          serialPrintln("Error: Line too long.\n");
         // Reset
         inpPtr = input;
         skipLine = true;
@@ -92,7 +92,7 @@ void decodeSerialIn(char* input) {
       // Check
       if(index < 0 || index >= COUNT_DOUTS) {
         if(serialTxPacketCount() == 0)
-          Serial.println("Error: index");
+          serialPrintln("Error: index\n");
         break;
       }
     
@@ -117,7 +117,7 @@ void decodeSerialIn(char* input) {
       
     // Reset
     case 'r':
-      Serial.println("Resetting");
+      serialPrintln("Resetting\n");
       delay(2000);
 #define RESTART_ADDR 0xE000ED0C
 #define WRITE_RESTART(val) ((*(volatile uint32_t *)RESTART_ADDR) = (val))
@@ -135,9 +135,9 @@ void decodeSerialIn(char* input) {
       const char* inp = &input[2];
       MIN_PRESS_TIME = asciiToUint(&inp);
       if(serialTxPacketCount() == 0) {
-        Serial.print("Changing press time to ");
-        Serial.print(MIN_PRESS_TIME);
-        Serial.println("ms");
+        serialPrint("Changing press time to ");
+        serialPrint(MIN_PRESS_TIME);
+        serialPrintln("ms\n");
       }
     }
     break;
@@ -145,12 +145,12 @@ void decodeSerialIn(char* input) {
     // Change minimum press time
     case 'i':
       if(serialTxPacketCount() == 0) {
-        Serial.println("Version: " SW_VERSION);
-        Serial.print("Min. press time:    ");Serial.print(MIN_PRESS_TIME);Serial.println("ms");
-        Serial.print("Max. time serial:   ");Serial.print(maxTimeSerial);Serial.println("us");
-        Serial.print("Max. time joystick: ");Serial.print(maxTimeJoystick);Serial.println("us");
-        Serial.print("Max. time total:    ");Serial.print(maxTimeTotal);Serial.println("us");
-        Serial.print("Last error: ");Serial.println(lastError);
+        serialPrint("Version: " SW_VERSION "\n");
+        serialPrint("Min. press time:    ");serialPrint(MIN_PRESS_TIME);serialPrint("ms\n");
+        serialPrint("Max. time serial:   ");serialPrint(maxTimeSerial);serialPrint("us\n");
+        serialPrint("Max. time joystick: ");serialPrint(maxTimeJoystick);serialPrint("us\n");
+        serialPrint("Max. time total:    ");serialPrint(maxTimeTotal);serialPrint("us\n");
+        serialPrint("Last error: ");serialPrint(lastError);serialPrintln();
 #ifdef ENABLE_LOGGING
         printLog();
 #endif
@@ -180,8 +180,8 @@ void decodeSerialIn(char* input) {
     // Unknown command
     default:
      if(serialTxPacketCount() == 0) {
-        Serial.print("Error: Unknown command: ");
-        Serial.println(input);
+        serialPrint("Error: Unknown command: ");
+        serialPrint(input);serialPrintln();
       }
       //Serial.clear();
     break; 
@@ -191,6 +191,7 @@ void decodeSerialIn(char* input) {
 
 // Returns the number of tx packets in the buffer.
 int serialTxPacketCount() {
+    return 0;   // Testen, ob ich auf die Funktion verzichten kann.
   return usb_tx_packet_count(CDC_TX_ENDPOINT);
 //  return usb_tx_packet_count(SEREMU_TX_ENDPOINT);
 }

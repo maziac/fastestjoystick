@@ -58,23 +58,23 @@ void setDout(uint8_t dout, int brightness, int attackMs, uint16_t delayMs) {
 
   // Give feedback
   if(serialTxPacketCount() == 0) {
-    Serial.print("DOUT");
-    Serial.print(dout);
-    Serial.print(" (Pin=");
-    Serial.print(doutPins[dout]);
-    Serial.print(") set to ");
-    Serial.print(brightness);
+    serialPrint("DOUT");
+    serialPrint(dout);
+    serialPrint(" (Pin=");
+    serialPrint(doutPins[dout]);
+    serialPrint(") set to ");
+    serialPrint(brightness);
     if(attackMs) {
-      Serial.print(", attack=");
-      Serial.print(attackMs);
-      Serial.print("ms");
+      serialPrint(", attack=");
+      serialPrint(attackMs);
+      serialPrint("ms");
     }
     if(delayMs) {
-      Serial.print(", delay=");
-      Serial.print(delayMs);
-      Serial.print("ms");
+      serialPrint(", delay=");
+      serialPrint(delayMs);
+      serialPrint("ms");
     }
-    Serial.println();
+    serialPrintln();
   }
 }
 
