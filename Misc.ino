@@ -2,6 +2,51 @@
 char lastError[100] = "None";
 
 
+#ifdef ENABLE_LOGGING
+// For simple logging.
+char logString[300] = {};
+char* logPtr = logString;
+
+
+// Logs a character into logString.
+void logChar(char c) {
+  *logPtr++ = c;
+  if(logPtr >= logString+sizeof(logString))
+    logPtr = logString;
+}
+
+
+// Prints the log string to Serial.
+void printLog() {
+  char* printPtr = logPtr;
+  if(*printPtr == 0)
+    printPtr = logString;
+  char* endPrintPtr = logPtr-1;
+  if(endPrintPtr < logString)
+    endPrintPtr = logString + sizeof(logString);
+    
+  Serial.print("Log: ");
+  while(char c = *printPtr++) {
+    if(printPtr == endPrintPtr)
+      break;
+    if(printPtr >= logString + sizeof(logString))
+      printPtr = logString;   
+    Serial.print(c);
+  }
+  Serial.println();
+    
+ /* 
+  char* pLog = logString;
+  while(pLog < logPtr) {
+    Serial.print("  ");Serial.print(*pLog);
+    Serial.print(": ");Serial.println((int)*pLog);
+    pLog++;
+  }
+  */
+}
+
+#endif
+
 
 // We should never get here. But if we do the assumption that the joystick + sampling delay is handled within 
 // 1ms (i.e. 900us) is wrong.
@@ -36,8 +81,8 @@ void error(const char* text) {
 }
 
 
-// Handles the Output and LED to indicate the USB polling rate.
-void indicateUsbPollRate() {
+// Handles the Output and LED to indicate the USB polling rate for the joystick endpoint.
+void indicateUsbJoystickPollRate() {
 #ifdef USB_POLL_OUT_PIN
     // USB_POLL_OUT:
     static bool usbPollOut = false;

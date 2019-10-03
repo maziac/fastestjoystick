@@ -49,11 +49,24 @@ uint16_t MIN_PRESS_TIME = 28;
 #define SW_VERSION "0.11"
 
 
+// Uncomment to allow logging.
+#define ENABLE_LOGGING
+
 // ASSERT macro
-#define ASSERT(cond)  {if(!(cond)) error("LINE " TOSTRING(__LINE__) ": ASSERT(" #cond ")");}
+#define ASSERT(cond)  {if(!(cond)) error(__FILE__ ", LINE " TOSTRING(__LINE__) ": ASSERT(" #cond ")");}
 #define STRINGIFY(x) #x
 #define TOSTRING(x) STRINGIFY(x)
 
+// The delay of the joystick. I.e. the time given to the algorithm to read the joystick axes and buttons
+// and to prepare the USB packet.
+// Or in other words: the algorithm is started 1ms-JOYSTICK_DELAY before thenext USB poll.
+#define JOYSTICK_DELAY  200   // in us
+
+// This is the allowed jitter of the USB host. 100us at a USB poll rate of 1ms means that the next USB poll is allowed to arrive 
+// at 1000ms-100us = 900ms.
+// Note: The SW checks that the joystick algorithm is ready before usb-poll-time - JOYSTICK_POLL_JITTER.
+// If this is violated then the dout values will start to blink.
+#define JOYSTICK_POLL_JITTER  100   // in us
 
 
 // Variables to measure the maximum timings.
@@ -82,9 +95,6 @@ void setup() {
 
   // Setup timer
   setupTimer();
-
-  // Empty serial in
-//  Serial.clear();
 }
 
 
@@ -92,10 +102,7 @@ void setup() {
 
 // MAIN LOOP
 void loop() {
-
-  // Make sure that no USB packet is in the queue
-  //while(usb_tx_packet_count(JOYSTICK_ENDPOINT) > 0);
-
+    
   // Endless loop
   while(true) {
  
@@ -106,35 +113,60 @@ void loop() {
     usb_joystick_send();
 
     // Wait on poll at max. double the poll time, then check for serial input.
-   // clearTimer(2000 * JOYSTICK_INTERVAL);
+    clearTimer(2000 * JOYSTICK_INTERVAL);
     
     // Wait on USB poll
     while(usb_tx_packet_count(JOYSTICK_ENDPOINT) > 0) {
-      // Handle serial, otherwise no input/ouput is possible if no joystick consumer is listening on Linux.
-      handleSerialIn();
+#if 01
+      if(isTimerOverflow()) {
+        // Wait for 1ms
+        clearTimer(1000 * JOYSTICK_INTERVAL);
+        // Handle serial, otherwise no input/ouput is possible if no joystick consumer is listening on Linux.
+        handleSerialIn();
+        // Handle digital out
+        handleDout();
+        // Wait until 1ms is over.
+        while(!isTimerOverflow() && usb_tx_packet_count(JOYSTICK_ENDPOINT) > 0);
+      }
+#endif
     }
  
     // Restart timer 0  
-    clearTimer(900);
+    clearTimer(1000*JOYSTICK_INTERVAL-JOYSTICK_POLL_JITTER); // ie. 900us
+  //clearTimer(700);
+ASSERT(!isTimerOverflow());
 
     // Handle poll interval output.
-    indicateUsbPollRate();
+    indicateUsbJoystickPollRate();
+ASSERT(!isTimerOverflow());
 
     // Handle serial in
     handleSerialIn();
+ASSERT(!isTimerOverflow()); // Here gibt es Timer overflow
 
     // Handle digital out
     handleDout();
+ASSERT(!isTimerOverflow());
 
     // Measure time 
-   if(GetTime() > maxTimeSerial)  maxTimeSerial = GetTime();   
-
+    if(GetTime() > maxTimeSerial)  maxTimeSerial = GetTime();   
+     
+     ASSERT(!isTimerOverflow());
+     
     // Wait some time
-    while(GetTime() < 800);
+    while(GetTime() < 1000*JOYSTICK_INTERVAL-JOYSTICK_DELAY); // ie. 800us
 
+     
     // For time measurement
     uint16_t timeStart = GetTime();
        
+     
+     if(isTimerOverflow()) {
+       if(GetTime() > maxTimeTotal)  maxTimeTotal = GetTime();   
+       if(GetTime()-timeStart > maxTimeJoystick)  maxTimeJoystick = GetTime()-timeStart;   
+       error("Overflow y");
+     }
+     
     // Handle joystick buttons and axis
     handleJoystick();  // about 30-40us
 
@@ -143,6 +175,11 @@ void loop() {
     if(GetTime()-timeStart > maxTimeJoystick)  maxTimeJoystick = GetTime()-timeStart;   
 
     // Check that routines did not take too long (no overflow)
-    ASSERT(!isTimerOverflow());
+//    ASSERT(!isTimerOverflow());
+     if(isTimerOverflow()) {
+       if(GetTime() > maxTimeTotal)  maxTimeTotal = GetTime();   
+       if(GetTime()-timeStart > maxTimeJoystick)  maxTimeJoystick = GetTime()-timeStart;   
+       error("Overflow e");
+     }
   }
 }

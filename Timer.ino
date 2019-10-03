@@ -23,10 +23,13 @@ void setupTimer() {
 // time: in us.
 void clearTimer(uint16_t time) {
   // Set time when overflow occurs.
-  TPM0_MOD = (uint32_t)time; 
+  while(TPM0_MOD != (uint32_t)time)     // Not required
+    TPM0_MOD = (uint32_t)time; 
         
   // Restart timer 0  
-  TPM0_CNT = 0; 
+  while(TPM0_CNT != 0)  // Not required
+    TPM0_CNT = 0; 
+    
   // Clear overflow
   while(TPM0_SC & FTM_SC_TOF)
     TPM0_SC |= FTM_SC_TOF; // spin wait

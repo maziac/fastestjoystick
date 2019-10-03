@@ -1,4 +1,4 @@
-//#include <usb_desc.h>
+#include <usb_desc.h>
 
 
 // Handles the serial input.
@@ -10,16 +10,27 @@ void handleSerialIn() {
   
   // Restrict input to no more than 50 characters.
   // Prevent flooding the device.
-#if 01
+#if 0
   if(Serial.available() > 50) {
     Serial.clear();
   }
 #endif
-  
+
+#if 0
+int k = 0;
+while(Serial.available()) {
+    // Get data 
+    char c = Serial.read();
+    if(k++>10)
+      return;
+}
+#endif
+ 
   // Check if data available
   while(Serial.available()) {
     // Get data 
     char c = Serial.read();
+    logChar(c);
     
     if(c == '\r') 
       break;   // Skip windows character
@@ -139,6 +150,9 @@ void decodeSerialIn(char* input) {
         Serial.print("Max. time joystick: ");Serial.print(maxTimeJoystick);Serial.println("us");
         Serial.print("Max. time total:    ");Serial.print(maxTimeTotal);Serial.println("us");
         Serial.print("Last error: ");Serial.println(lastError);
+#ifdef ENABLE_LOGGING
+        printLog();
+#endif
       }
       // Reset times
       maxTimeSerial = 0;
@@ -156,7 +170,7 @@ void decodeSerialIn(char* input) {
         Serial.print("Error: Unknown command: ");
         Serial.println(input);
       }
-      Serial.clear();
+      //Serial.clear();
     break; 
   }   
 }
@@ -167,3 +181,9 @@ int serialTxPacketCount() {
   return usb_tx_packet_count(CDC_TX_ENDPOINT);
 //  return usb_tx_packet_count(SEREMU_TX_ENDPOINT);
 }
+
+
+serialPrint(const char* s) {
+ 
+}
+
