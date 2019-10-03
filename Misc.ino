@@ -2,6 +2,12 @@
 char lastError[100] = "None";
 
 
+// This can be turned on with a serial command.
+// If false the serial print commands will do nothing.
+// If true then printing is enabled.
+bool DEBUG = false;
+
+
 #ifdef ENABLE_LOGGING
 // For simple logging.
 char logString[300] = {};

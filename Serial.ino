@@ -79,6 +79,7 @@ while(Serial.available()) {
 // t : Test the blinking
 // p=Y : Change minimum press time to Y (in ms), e.g. "p=25"
 // i : Info. Print version number and used times.
+// d=X: Turn debug mode on/off (1/0). If off serial printing is disabled.
 void decodeSerialIn(char* input) {
   // Check for command
   switch(input[0]) {
@@ -116,7 +117,7 @@ void decodeSerialIn(char* input) {
       
     // Reset
     case 'r':
-     Serial.println("Resetting");
+      Serial.println("Resetting");
       delay(2000);
 #define RESTART_ADDR 0xE000ED0C
 #define WRITE_RESTART(val) ((*(volatile uint32_t *)RESTART_ADDR) = (val))
@@ -143,7 +144,7 @@ void decodeSerialIn(char* input) {
     
     // Change minimum press time
     case 'i':
-     if(serialTxPacketCount() == 0) {
+      if(serialTxPacketCount() == 0) {
         Serial.println("Version: " SW_VERSION);
         Serial.print("Min. press time:    ");Serial.print(MIN_PRESS_TIME);Serial.println("ms");
         Serial.print("Max. time serial:   ");Serial.print(maxTimeSerial);Serial.println("us");
@@ -160,9 +161,21 @@ void decodeSerialIn(char* input) {
       maxTimeTotal = 0;
     break;
 
+    // Turn debug mode ON/OFF. Debug mode enables serial printing.
+    case 'd':
+    {
+      bool on = (input[2] != 0);
+      DEBUG = true;
+      serialPrint("Debug Mode=");
+      serialPrint(on ? "ON" : "OFF");
+      serialPrintln();
+      DEBUG = on;
+    }
+    break;
+
     // Just a newline
     case 0:
-      break;
+    break;
       
     // Unknown command
     default:
@@ -183,7 +196,14 @@ int serialTxPacketCount() {
 }
 
 
-serialPrint(const char* s) {
- 
+// Capsulates the printing functions.
+// Printing will only be done if 'DEBUG' is on.
+void serialPrint(const char* s) {
+  if(DEBUG)
+    Serial.print(s);
 }
 
+void serialPrintln() {
+  if(DEBUG)
+    Serial.println();
+}
