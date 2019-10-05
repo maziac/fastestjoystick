@@ -46,11 +46,20 @@ uint16_t MIN_PRESS_TIME = 28;
 
 
 // The SW version.
-#define SW_VERSION "0.12"
+#define SW_VERSION "0.13"
 
 
 // Uncomment to allow logging.
 //#define ENABLE_LOGGING
+
+
+// This can be turned on with a serial command.
+// If false the serial print commands will do nothing.
+// If true then printing is enabled.
+// Please note: If enabled this might lead to odd results on Linux. I.e. it seems that the ouput is echoed into the input.
+//bool DEBUG = true;
+bool DEBUG = false;
+
 
 // ASSERT macro
 #define ASSERT(cond)  {if(!(cond)) error(__FILE__ ", LINE " TOSTRING(__LINE__) ": ASSERT(" #cond ")");}

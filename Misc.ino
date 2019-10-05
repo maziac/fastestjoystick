@@ -2,11 +2,6 @@
 char lastError[100] = "None";
 
 
-// This can be turned on with a serial command.
-// If false the serial print commands will do nothing.
-// If true then printing is enabled.
-bool DEBUG = false;
-
 
 #ifdef ENABLE_LOGGING
 // For simple logging.
@@ -24,7 +19,7 @@ void logChar(char c) {
 
 // Prints the log string to Serial.
 void printLog() {
-  char* printPtr = logPtr;
+ char* printPtr = logPtr;
   if(*printPtr == 0)
     printPtr = logString;
   char* endPrintPtr = logPtr-1;
@@ -56,10 +51,17 @@ void error(const char* text) {
   // In debugmode ignore errors (ASSERTS)
   if(DEBUG)
     return;
-    
+  
   // Print text to serial
   serialPrint(text);
   serialPrintln();
+  // blink
+  fastBlinking();
+}
+
+
+// Blink fast. Main LED and DOUTs. For error indication.
+void fastBlinking() {
   // Endless loop
   while(true) {
 #ifdef MAIN_LED_PIN
