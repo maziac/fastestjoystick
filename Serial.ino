@@ -8,24 +8,6 @@ void handleSerialIn() {
   static char* inpPtr = input;
   static bool skipLine = false;
   
-  // Restrict input to no more than 50 characters.
-  // Prevent flooding the device.
-#if 0
-  if(Serial.available() > 50) {
-    Serial.clear();
-  }
-#endif
-
-#if 0
-int k = 0;
-while(Serial.available()) {
-    // Get data 
-    char c = Serial.read();
-    if(k++>10)
-      return;
-}
-#endif
- 
   // Check if data available
   while(Serial.available()) {
     // Get data 
@@ -42,6 +24,7 @@ while(Serial.available()) {
       // Check for skip
       if(!skipLine) {
         *inpPtr = 0;
+        inpPtr = input;
         // Decode input
         decodeSerialIn(input);
       }
@@ -82,15 +65,15 @@ while(Serial.available()) {
 // p=Y : Change minimum press time to Y (in ms), e.g. "p=25"
 // i : Info. Print version number and used times.
 // d=X: Turn debug mode on/off (1/0). If off serial printing is disabled.
-void decodeSerialIn(char* input) {
+void decodeSerialIn(char* inputStr) {
   // Check for command
-  switch(input[0]) {
+  switch(inputStr[0]) {
     
     // Set output
     case 'o':
     {
       // Get output
-      int index = input[1] - '0';
+      int index = inputStr[1] - '0';
       // Check
       if(index < 0 || index >= COUNT_DOUTS) {
         if(serialPrintAllowed())
@@ -99,7 +82,7 @@ void decodeSerialIn(char* input) {
       }
     
       // Get value [0;100]
-      const char* inp = &input[3];
+      const char* inp = &inputStr[3];
       int value = asciiToUint(&inp);
     
       // Get attack time
@@ -128,13 +111,15 @@ void decodeSerialIn(char* input) {
       
     // Test fast blinking
     case 't':
-      error("Test");
+      serialPrint("Test");
+      serialPrintln();
+      fastBlinking();
     break;
       
     // Change minimum press time
     case 'p':
     {
-      const char* inp = &input[2];
+      const char* inp = &inputStr[2];
       MIN_PRESS_TIME = asciiToUint(&inp);
       if(serialPrintAllowed()) {
         serialPrint("Changing press time to ");
@@ -146,9 +131,10 @@ void decodeSerialIn(char* input) {
     
     // Change minimum press time
     case 'i':
+    {
+      bool prevDbg = DEBUG;
+      DEBUG = true;
       if(serialPrintAllowed()) {
-        bool prevDbg = DEBUG;
-        DEBUG = true;
         serialPrint("Version: " SW_VERSION "\n");
         serialPrint("Min. press time:    ");serialPrint(MIN_PRESS_TIME);serialPrint("ms\n");
         serialPrint("Max. time serial:   ");serialPrint(maxTimeSerial);serialPrint("us\n");
@@ -161,18 +147,19 @@ void decodeSerialIn(char* input) {
 #ifdef ENABLE_LOGGING
         printLog();
 #endif
-        DEBUG = prevDbg;
       }
+      DEBUG = prevDbg;
       // Reset times
       maxTimeSerial = 0;
       maxTimeJoystick = 0;
       maxTimeTotal = 0;
+    }
     break;
 
     // Turn debug mode ON/OFF. Debug mode enables serial printing.
     case 'd':
     {
-      bool on = (input[2] != '0');
+      bool on = (inputStr[2] != '0');
       DEBUG = true;
       serialPrint("Debug Mode=");
       serialPrint(on ? "ON" : "OFF");
@@ -189,7 +176,8 @@ void decodeSerialIn(char* input) {
     default:
      if(serialPrintAllowed()) {
         serialPrint("Error: Unknown command: ");
-        serialPrint(input);serialPrintln();
+        serialPrint(inputStr);
+        serialPrintln();
       }
       //Serial.clear();
     break; 
