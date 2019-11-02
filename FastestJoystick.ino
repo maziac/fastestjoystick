@@ -51,7 +51,7 @@ uint16_t MIN_PRESS_TIME = 28;
 
 
 // The SW version.
-#define SW_VERSION "0.13"
+#define SW_VERSION "0.14"
 
 
 // Uncomment to allow logging.

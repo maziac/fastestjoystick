@@ -17,17 +17,6 @@ uint16_t buttonTimers[COUNT_BUTTONS] = {};
 // The (previous) joystick button values. Bit map. 1=pressed.
 uint32_t prevButtonsValue = 0;  
 
-// Timer values for the axes.
-uint16_t axesTimers[COUNT_AXES] = {};
-
-// The (previous) joystick button values.
-// Values: 0=left/down, 512=no direction, 1023=right/up
-int prevAxesValue[COUNT_AXES];
-
-// Either button for low (0-512) was the last activity: 0.
-// Or button for high (512-1023) was the last activity: 1.
-int lastAxesActivity[COUNT_AXES] = {};
-
 
 // Initialize.
 void initJoystick() {
@@ -91,7 +80,6 @@ void handleButtons() {
 
 #if ! ANALOG_AXES_ENABLED
 // Reads the joystick digital axes.
-// Handles debouncing and minimum press time.
 // Note: This algorithm needs to be modified if COUNT_AXES is bigger than 2.
 void handleDigitalAxes() {
   int shift = 4;
@@ -104,46 +92,16 @@ void handleDigitalAxes() {
     int axisLow = (digitalRead(axesPins[i<<1]) == LOW) ? 0 : 512; // Active LOW
     int axisHigh = (digitalRead(axesPins[(i<<1)+1]) == LOW) ? 1023 : 512; // Active LOW
     
-    // Check if axis timer is 0
-    if(axesTimers[i] > JOYSTICK_INTERVAL) {
-      // Decrease timer
-      axesTimers[i] -= JOYSTICK_INTERVAL;
-      // Check if other direction is pressed
-      if(lastAxesActivity[i]) {
-        // high (512-1023). Check if other button is pressed.
-        if(axisLow != 512)
-          goto L_JOY_AXIS_MOVED;
-      }
-      else  {
-        // low (0-512). Check if other button is pressed.
-        if(axisHigh != 512)
-          goto L_JOY_AXIS_MOVED;
-      }
+    int axisValue = 512;
+    if(axisLow != 512) {
+      axisValue = axisLow;
     }
-    else {
-      // Timer is zero (i.e. below JOYSTICK_INTERVAL). Now check if the button state has changed.
-L_JOY_AXIS_MOVED:
-      int axisValue = 512;
-      if(axisLow != 512) {
-        lastAxesActivity[i] = 0;
-        axisValue = axisLow;
-      }
-      if(axisHigh != 512) {
-        lastAxesActivity[i] = 1;
-        axisValue = axisHigh;
-      }
+    if(axisHigh != 512) {
+      axisValue = axisHigh;
+    }
 
-      // Check for change
-      if(axisValue != prevAxesValue[i]) {
-        // Button value has changed
-        prevAxesValue[i] = axisValue;
-        // Restart timer
-        axesTimers[i] = MIN_PRESS_TIME;
-    
-        // Handle axes movement
-        usb_joystick_data[1] = (usb_joystick_data[1] & (~mask)) | (axisValue << shift);
-      }
-    }
+    // Handle axes movement
+    usb_joystick_data[1] = (usb_joystick_data[1] & (~mask)) | (axisValue << shift);
 
     // Next
     shift += 10;
