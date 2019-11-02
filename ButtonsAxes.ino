@@ -3,7 +3,11 @@
 #define COUNT_BUTTONS   ((uint8_t)sizeof(buttonPins))
 
 // Number of different joystick axes. (At maximum 2 axes are supported.)
+#if ANALOG_AXES_ENABLED
+#define COUNT_AXES  (sizeof(axesPins))
+#else
 #define COUNT_AXES   ((uint8_t)sizeof(axesPins)/2)
+#endif
 
 // Timer values for all joystick buttons.
 uint16_t buttonTimers[COUNT_BUTTONS] = {};
@@ -28,10 +32,11 @@ int lastAxesActivity[COUNT_AXES] = {};
 // Initialize.
 void initJoystick() {
   for(uint8_t i=0; i<COUNT_BUTTONS; i++) {
+    //pinMode(buttonPins[i], INPUT_PULLUP);
     pinMode(buttonPins[i], INPUT_PULLUP);
   }
-  for(uint8_t i=0; i<2*COUNT_AXES; i++) {
-    pinMode(axesPins[i], INPUT_PULLUP);
+  for(uint8_t i=0; i<sizeof(axesPins); i++) {
+    pinMode(axesPins[i], (ANALOG_AXES_ENABLED)? INPUT : INPUT_PULLUP);
   }
 }
 
@@ -42,7 +47,11 @@ void handleJoystick() {
   // Buttons
   handleButtons();
   // Axes
-  handleAxes();
+#if ANALOG_AXES_ENABLED
+  handleAnalogAxes();
+#else
+  handleDigitalAxes();
+#endif
 }
 
 
@@ -80,10 +89,11 @@ void handleButtons() {
 }
 
 
-// Reads the joystick axis.
+#if ! ANALOG_AXES_ENABLED
+// Reads the joystick digital axes.
 // Handles debouncing and minimum press time.
 // Note: This algorithm needs to be modified if COUNT_AXES is bigger than 2.
-void handleAxes() {
+void handleDigitalAxes() {
   int shift = 4;
   uint32_t mask = ~0xFFFFC00F;
   //int shift = 4+((COUNT_AXES-1)*10);;
@@ -142,4 +152,13 @@ L_JOY_AXIS_MOVED:
     //mask >>= 10;
   }
 }
+#endif
 
+
+#if ANALOG_AXES_ENABLED
+// Reads the joystick analog axes.
+// Can handle max. 2 analog axes.
+void handleAnalogAxes() {
+#error NOT YET IMPLEMENTED !!!!
+}
+#endif
