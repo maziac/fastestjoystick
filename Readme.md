@@ -1,7 +1,5 @@
 # Fastest Joystick
 
-**Note: This is still work in progress. I.e. not finished.**
-
 The idea to write the firmware for an USB controller raised in me when doing the USB controller measurements in 
 [LagMeter](../LagMeter/Readme.md).
 It is quite invisible what a usual game controller does when sampling the buttons and the axis data and what delay it might add.
@@ -33,7 +31,7 @@ Used HW is a cheap Teensy LC board that you can get around 10€.
 The pinout is used as following (but can be changed to fit your needs):
 ![](Images/TeensyLCSchematics.png)
 
-Note: All pinouts I found for the axes JST connector were different, so I have chosen the pinout above. If you need a different one you just have to change the wiring.
+Note: All pinouts I found for the axes JST connectors were different, so I have chosen the pinout above. If you need a different one you just have to change the wiring.
 
 
 # SW / Firmware
@@ -62,8 +60,10 @@ Here the bouncing of a micro switch:
 
 This results in the following requirements:
 - We need a debouncing of 5ms
-- Since I'm optimizing for a game's poll time of 20ms (europe, US would be 17ms) and the minimum achievable time is 14ms, the time need to be extended to at lease 20ms + USB poll time + firmware delay, so approx. 22ms.
-Note: If you have lower game poll time's, e.g. if you have higher screen update rates, then you should adapt this value (MIN_PRESS_TIME).
+- Since I'm optimizing for a game's poll time of 16.7ms (US, Europe would be 20ms) and the minimum achievable time is 14ms, the time need to be extended to at lease 16.7ms + USB poll time + firmware delay, so approx. 18ms.
+To allow also for 50Hz systems (Europe, 20ms) I extend it to 25ms to allow for some variation.
+
+Note: If you have lower game poll time's, e.g. if you have higher screen update rates, then you could adapt this value (MIN_PRESS_TIME).
 But anyhow: this is only important for leaf switches. Micro switches anyway have a higher close-time.
 
 Debouncing and minimum press time uses the same algorithm. It extends the simple main loop to:
@@ -129,14 +129,13 @@ I.e. a 1ms polling looks like this:
 2. The main LED (on the Teensy board) will be toggled depending on the USB poll interval. Every 1000th USB poll the LED will be toggled. I.e. for a 1ms interval the LED will toggle every 1 second. For 8ms USB interval the LED will toggle every 8 seconds.
 
 Note: The LED and the USB poll digital out will be used only if the joystick endpoint is polled.
-There is also a serial device implemented. If this is used without the joystick being used at the same time the LED may not blink.
-E.g. on Linux you may find that the main LED is not blinking if you just send commands to the serial device.
+E.g. on Linux you may find that the main LED is not blinking if you connect the device to USB. You need to actually read from the joystick device (/dev/input/js?) e.g. by opening a joystick test program (e.g. jstest-gtk).
 
 
 ## USB packet queue
 
 In the Teensy it doesn't seem to be easily possible to detect when the host does an USB poll.
-One way is to send a packet and watch when the packet has been read (usb_tx_packet_count).
+One way is to send a packet and check when the packet has been read (usb_tx_packet_count).
 Unfortunately this involves that a packet has to be sent even if no new data is available.
 
 Furthermore the library uses a queue of 3 packets (TX_PACKET_LIMIT).
@@ -144,91 +143,22 @@ If we simply write into the queue we end up in a delay of 3ms.
 So the SW makes sure that always only 1 packet is used. I.e. the packet is immediately sent in the next USB poll.
 
 
-# Functionality
-
-## Digital Out
-
-Of course the joystick can transmit button presses and axis changes via USB to the PC.
-But it is also capable to turn on/off certain digital outputs controlled by the PC (USB host).
-This can be useful to turn on/off the LED light of some of the buttons. e.g. one could enlighten only those buttons that really have a function in the particular game. (See also the LEDBlinky project).
-
-This is done through serial communication. The joystick additionally opens up a serial communication with the PC.
-with a simple command it is possible to turn an output on or off, e.g. "o2=100" would turn the digital out 2 (DOUT2) to 100%.
-
-On mac can find the serial device e.g. with:
-~~~
-$ ls /dev/cu*
-$ /dev/cu.Bluetooth-Incoming-Port	/dev/cu.usbmodem56683601
-~~~
-It's a little bit unclear how the naming is done but it is clear that we are not the Bluetooth device so the right device is:
-/dev/cu.usbmodem56683601
-
-To turn on DOUT0 use:
-~~~
-$ echo o0=100 > /dev/cu.usbmodem56683601
-~~~
-
-The full syntax for this command is:
-
-oN=X[,attack[,delay] : Set output N to X (0-100) with an 'attack' time and a delay.
-'attack' means that the digital out will change smoothly from its current value to the target (X) within the 'attack' time.
-'delay' adds an additional delay before 'attack' starts.
-All times are in ms.
-If you omit the values 0 is assumed for 'attack' and 'delay' and the value of the digital out is changed immediately.
-
-PWM is used to allow to "dim" the digital outputs. It works with a frequency of 100kHz to avoid flickering.
-
-
-
-## Debug Commands
-
-There are a few more commands that you should not need to use unless you are going to make own changes to the SW.
-Often these command will result in some output.
-The output can be read from the same device (see above), e.g. in another terminal use:
-~~~
-$ cat /dev/cu.usbmodem56683601
-~~~
-
-Commands:
-- o : Change digital out. See above.
-- r : Reset. e.g. echo r > /dev/cu.usbmodem56683601
-- t : Test the blinking. This will let the joystick (all digital outs + main LED) blink at the same rate as if an error had occurred.
-  If you are unsure how it looks like when an error occurs you can use the "t" command.
-  Please note: To get into normal mode afterwards you have to the "r".
-- p=Y : Change minimum press time to Y (in ms), e.g. "p=25". After startup the minimum press time is set to a default value (MIN_PRESS_TIME, please look the exact value in the sources, it is about 25ms). If you would like to test other values you can do with this command. To test the functionality you can even use extraordinary high numbers like 2000 for 2 secs. This value cannot be used in a game, but you can test the behavior.
-Note: To go back to the default value use "r".
-- i : Info. Print version number, min. press time and used times. The 'used times' measures 3 times:
-    - Max. time serial:   The max. time used to read the serial bus (i.e. the commands).
-    - Max. time joystick: The max. time used to read the joystick values (buttons and axes).
-    - Max. time total:    The max. total time used. this needs to be below 900us otherwise an error is shown.
-    Note: this info is printed even if debug mode is off.
-- d=X: Turn debug mode on/off (1/0). The default is off.
-This exists as the serial out of the Teensy sometimes uses a substantial amount of time. This would violate the time check for the button/axis algorithm and lead to an error.
-So I decided to skip the serial output completely in normal mode.
-But if you need serial out for debugging you can turn it on here. I.e. you will get a confirmation for the changes to the digital outputs. 
-But don't use this in normal operation as the response time of 0.2 to 1.2 ms are not guaranteed anymore if ON.
-
-
-## Errors
+# Errors
 
 You hopefully never see an error. The errors here are created by program ASSERTs. I.e. they are helpful during debugging but should not occur under normal conditions.
 
-When an error occurs the main LED and all digital outs start blinking fast. To get an idea what this looks like you can send a "t" command through the serial device.
-At the same time the joystick will send the ASSERT text through the serial device so that you can read it on the PC e.g. with
-~~~
-$ cat /dev/cu.usbmodem56683601
-~~~
-Since the line is buffered you can also use this command after the error happened.
+When an error occurs the main LED starts blinking fast. 
 
-Errors (ASSERTs) may occur when either the algorithm to read the joystick would take too long (>900us) or the USB queue is filled.
-In both cases the guaranteed delay time would be compromised.
+From that point on the joystick is not reporting any axes information or button presses anymore until you re-connect it to USB.
 
-So, in reverse, as long as you don't see any error you know that the joystick is answering fast.
+Thus, as long as the joystick is working you can be sure of it's guaranteed lag time.
 
-Note 1: Once an error has occurred it stops reading the joystick and transmitting joystick data. You need to reset the device, either by powering down or by sending "r" on the serial, before you can use it again.
 
-Note 2: You don't have to fear that an error happens during usage. The routines are fast enough to always stay below the limit. This is just a tool for debugging and also a constant check that the delay is as low as possible.
 
-Note 3: In debug mode ("-d=1") the check is turned off.
+# Misc
+
+The branch 'joystick_and_output' contains SW that allows to use the Teensy as joystick and additionally configure ports for digital output.
+
+I'm not supporting this anymore because I decided to split this in 2 separate git repositories, see the 'usbout' git repository.
 
 

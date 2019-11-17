@@ -16,11 +16,10 @@ The features are:
 // Button 0-6 = Pin 12, 11, 9, unused, 6, 3, 0  (at max 0-12 input buttons are possible)
 // Axis left/right: Pin 18/19 AU/AD
 // Axis down/up: Pin 20/21 AL/AR
-// DOUT 0-3 = Pin 16, 17, 22, 23
 
 // The buttons permutation table. Logical button ins [0;12] are mapped to physical pins.
-//uint8_t buttonPins[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12 }; // Normal configuration (Buffalo)
-uint8_t buttonPins[] = { /*Button0*/ 12, /*Button1*/11, /*Button2*/9, /*Unused*/1, /*Start1*/6, /*Start2*/3, /*Orientation*/0, /*Others unused*/ };
+uint8_t buttonPins[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12 }; // Normal configuration (Buffalo)
+//uint8_t buttonPins[] = { /*Button0*/ 12, /*Button1*/11, /*Button2*/9, /*Unused*/1, /*Start1*/6, /*Start2*/3, /*Orientation*/0, /*Others unused*/ };
 
 // The axes permutation table. Logical axes ins [0;12] are mapped to physical pins.
 // For digital input 2 entries form a pair, e.g. left/right or up/down.
@@ -31,9 +30,6 @@ uint8_t axesPins[] = { 20, 21,  18, 19 }; // Digital input.
 //#define ANALOG_AXES_ENABLED  1      // Analog input.
 //uint8_t axesPins[] = { 20, 21 };    // Analog input.
 
-// The digital out permutation table. Logical outs [0;3] are mapped to physical pins.
-uint8_t doutPins[] = { 16, 17, 22, 23 };  // Use pins capable of PWM
-
 
 // Turn main LED on/off (Note: the built-in LED is pin 13).
 // Comment if you don't need this.
@@ -41,29 +37,17 @@ uint8_t doutPins[] = { 16, 17, 22, 23 };  // Use pins capable of PWM
 
 // Turn digital poll out pin (14) on/off.
 // Comment if you don't need this.
-#define USB_POLL_OUT_PIN  14
+//#define USB_POLL_OUT_PIN  14
 
 
 // The debounce and minimal press- and release time of a button (in ms).
-uint16_t MIN_PRESS_TIME = 28;
+uint16_t MIN_PRESS_TIME = 25;
 
 // *** CONFIGURATION END **************************************************
 
 
 // The SW version.
-#define SW_VERSION "0.14"
-
-
-// Uncomment to allow logging.
-//#define ENABLE_LOGGING
-
-
-// This can be turned on with a serial command.
-// If false the serial print commands will do nothing.
-// If true then printing is enabled.
-// Please note: If enabled this might lead to odd results on Linux. I.e. it seems that the ouput is echoed into the input.
-//bool DEBUG = true;
-bool DEBUG = false;
+#define SW_VERSION "1.0"
 
 
 // ASSERT macro
@@ -105,7 +89,6 @@ void setup() {
 
   // Initialize buttons, axes and digital outs
   initJoystick();
-  initDout();
 
   // Setup timer
   setupTimer();
@@ -134,10 +117,6 @@ void loop() {
       if(isTimerOverflow()) {
         // Wait for 1ms
         clearTimer(1000 * JOYSTICK_INTERVAL);
-        // Handle serial, otherwise no input/ouput is possible if no joystick consumer is listening on Linux.
-        handleSerialIn();
-        // Handle digital out
-        handleDout();
         // Wait until 1ms is over.
         while(!isTimerOverflow() && usb_tx_packet_count(JOYSTICK_ENDPOINT) > 0);
       }
@@ -148,12 +127,6 @@ void loop() {
 
     // Handle poll interval output.
     indicateUsbJoystickPollRate();
-
-    // Handle serial in
-    handleSerialIn();
-
-    // Handle digital out
-    handleDout();
 
     // Measure time 
     if(GetTime() > maxTimeSerial)  maxTimeSerial = GetTime();   
