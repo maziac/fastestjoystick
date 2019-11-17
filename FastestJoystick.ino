@@ -57,7 +57,7 @@ uint16_t MIN_PRESS_TIME = 25;
 
 // The delay of the joystick. I.e. the time given to the algorithm to read the joystick axes and buttons
 // and to prepare the USB packet.
-// Or in other words: the algorithm is started 1ms-JOYSTICK_DELAY before thenext USB poll.
+// Or in other words: the algorithm is started 1ms-JOYSTICK_DELAY before the next USB poll.
 #define JOYSTICK_DELAY  200   // in us
 
 // This is the allowed jitter of the USB host. 100us at a USB poll rate of 1ms means that the next USB poll is allowed to arrive 
@@ -65,13 +65,6 @@ uint16_t MIN_PRESS_TIME = 25;
 // Note: The SW checks that the joystick algorithm is ready before usb-poll-time - JOYSTICK_POLL_JITTER.
 // If this is violated then the dout values will start to blink.
 #define JOYSTICK_POLL_JITTER  100   // in us
-
-
-// Variables to measure the maximum timings.
-uint16_t maxTimeSerial = 0;
-uint16_t maxTimeJoystick = 0;
-uint16_t maxTimeTotal = 0;
-
 
 
 // SETUP
@@ -128,21 +121,11 @@ void loop() {
     // Handle poll interval output.
     indicateUsbJoystickPollRate();
 
-    // Measure time 
-    if(GetTime() > maxTimeSerial)  maxTimeSerial = GetTime();   
-    
     // Wait some time
     while(GetTime() < 1000*JOYSTICK_INTERVAL-JOYSTICK_DELAY); // ie. 800us
-     
-    // For time measurement
-    uint16_t timeStart = GetTime();
-     
+
     // Handle joystick buttons and axis
     handleJoystick();  // about 30-40us
-
-    // Measure time
-    if(GetTime() > maxTimeTotal)  maxTimeTotal = GetTime();   
-    if(GetTime()-timeStart > maxTimeJoystick)  maxTimeJoystick = GetTime()-timeStart;   
 
     // Check that routines did not take too long (no overflow)
     ASSERT(!isTimerOverflow());
