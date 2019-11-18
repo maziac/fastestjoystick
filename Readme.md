@@ -21,14 +21,13 @@ The features are:
 For comparison:
 A typical game controller often has a poll time of 8ms. This in itself leads to a reaction time of 8 to 16ms. Sometimes the controller itself has another delay that needs to be added. So this not only jitters a lot, it is already quite close to 1 frame delay.
 Even faster game controller with 1ms poll time introduce an inherent delay of about 5ms.
-(I only heard of 1 USB controller with a 1ms delay but unfortunately I lost the link.)
 
 
 # HW
 
 Used HW is a cheap Teensy LC board that you can get around 10€.
 
-The pinout is used as following (but can be changed to fit your needs):
+The pinout used is as following (but can be changed to fit your needs):
 ![](Images/TeensyLCSchematics.png)
 
 Note: All pinouts I found for the axes JST connectors were different, so I have chosen the pinout above. If you need a different one you just have to change the wiring.
@@ -60,10 +59,10 @@ Here the bouncing of a micro switch:
 
 This results in the following requirements:
 - We need a debouncing of 5ms
-- Since I'm optimizing for a game's poll time of 16.7ms (US, Europe would be 20ms) and the minimum achievable time is 14ms, the time need to be extended to at lease 16.7ms + USB poll time + firmware delay, so approx. 18ms.
+- Since I'm optimizing for a game's poll time of 16.7ms (US, Europe would be 20ms) and the minimum achievable time is 14ms, the time need to be extended to at least 16.7ms + USB poll time + firmware delay, so approx. 18ms.
 To allow also for 50Hz systems (Europe, 20ms) I extend it to 25ms to allow for some variation.
 
-Note: If you have lower game poll time's, e.g. if you have higher screen update rates, then you could adapt this value (MIN_PRESS_TIME).
+Note: If you have lower game poll times, e.g. if you have higher screen update rates, then you could adapt this value (MIN_PRESS_TIME).
 But anyhow: this is only important for leaf switches. Micro switches anyway have a higher close-time.
 
 Debouncing and minimum press time uses the same algorithm. It extends the simple main loop to:
@@ -112,7 +111,7 @@ The total delay here is 0.2ms to 1.2ms.
 
 This approach has one main problem:
 If the algorithm to read the buttons and axes values would take longer than the remaining 0.2ms we would miss the USB poll interval and the resulting lag would be even longer. Therefore there is a check done in SW that the execution of reading buttons and axis values is short enough.
-If this happens: the main LED and the button LEDs will start to blink fast.
+If the check hits: the main LED will start to blink fast and the joystick will stop working.
 
 In fact the tested time is even less than 0.2ms. I use 0.1ms. I.e. the algorithm starts 0.8ms after the last poll and has to finish 0.1ms before the next poll.
 So we can cope also with a little jitter in the USB polling.
@@ -161,4 +160,117 @@ The branch 'joystick_and_output' contains SW that allows to use the Teensy as jo
 
 I'm not supporting this anymore because I decided to split this in 2 separate git repositories, see the 'usbout' git repository.
 
+
+# Building
+
+## Prerequisites:
+
+You need to have Arduino installed and also the Teensyduino add-on (https://www.pjrc.com/teensy/teensyduino.html).
+
+Furthermore this USB device uses a type with an USB poll interval that is not yet existing in Teensyduino.
+Therefore you need to  modify the USB description in file "...your arduino installation.../Java/hardware/teensy/avr/cores/teensy3/usb_desc.h".
+
+You have to search for the exact path for your OS. Under macos it is usually:
+/Applications/Arduino.app/Contents/Java/hardware/teensy/avr/cores/teensy3/usb_desc.h".
+
+Add the following lines
+~~~c++
+#elif defined(USB_FASTEST_JOYSTICK)
+  #define VENDOR_ID		0x16C0
+  #define PRODUCT_ID		0x0487
+  #define DEVICE_CLASS		0xEF
+  #define DEVICE_SUBCLASS	0x02
+  #define DEVICE_PROTOCOL	0x01
+  #define MANUFACTURER_NAME	{'M','a','z','i','a','c'}
+  #define MANUFACTURER_NAME_LEN	6
+  #define PRODUCT_NAME		{'F','a','s','t','e','s','t','J','o','y','s','t','i','c','k'}
+  #define PRODUCT_NAME_LEN	15
+  #define EP0_SIZE		64
+  #define NUM_ENDPOINTS		4
+  #define NUM_USB_BUFFERS	30
+  #define NUM_INTERFACE		3
+  #define CDC_IAD_DESCRIPTOR	1
+  #define CDC_STATUS_INTERFACE	0
+  #define CDC_DATA_INTERFACE	  1	// Serial
+  #define CDC_ACM_ENDPOINT	    1
+  #define CDC_RX_ENDPOINT       2
+  #define CDC_TX_ENDPOINT       3
+  #define CDC_ACM_SIZE          16
+  #define CDC_RX_SIZE           64
+  #define CDC_TX_SIZE           64
+  #define JOYSTICK_INTERFACE    2	// Joystick
+  #define JOYSTICK_ENDPOINT     4
+  #define JOYSTICK_SIZE         12	//  12 = normal, 64 = extreme joystick
+  #define JOYSTICK_INTERVAL     1
+  #define ENDPOINT1_CONFIG	ENDPOINT_TRANSMIT_ONLY
+  #define ENDPOINT2_CONFIG	ENDPOINT_RECEIVE_ONLY
+  #define ENDPOINT3_CONFIG	ENDPOINT_TRANSMIT_ONLY
+  #define ENDPOINT4_CONFIG	ENDPOINT_TRANSMIT_ONLY
+~~~
+to the file e.g. you can add it just before
+~~~c++
+#elif defined(USB_TOUCHSCREEN)
+~~~
+
+Then you need to add this configuration to the Arduino/Teensy IDE UI.
+Locate  "..../Java/hardware/teensy/avr/boards.txt" and add the following lines:
+~~~
+teensyLC.menu.usb.hidjoystick=Fastest Joystick
+teensyLC.menu.usb.hidjoystick.build.usbtype=USB_FASTEST_JOYSTICK
+~~~
+e.g. just before the line
+~~~
+teensyLC.menu.usb.touch=Keyboard + Touch Screen
+~~~
+
+If the Arduino app was running you need to restart it to take effect.
+
+
+## Build the SW:
+1. Start Arduino (incl. Teensyduino)
+2. Open file "FastestJoystick.ino"
+3. Select "Tools->Boards" = "Teensy LC"
+4. Select "Tools->USB Type" = "Fastest Joystick"
+5. Connect the Teensy LC via USB
+6. Verify (compile) and Upload the sketch
+
+
+## Testing:
+
+Connect the device to USB and use some SW for testing USB controllers.
+On Linux you can use "jstest-gtk", on macos you can use "Controllers Lite".
+On Windows you can use the Windows USB game controller application.
+
+Press some attached buttons or just short-circuit and input to ground and you see an reaction in your USB controller SW.
+
+
+## Configuration:
+
+### Pins:
+The button pins and the axes pins can be configured.
+This is done in the configuration section in FastestJoystick.ino via the arrays
+~~~c++
+uint8_t buttonPins[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12 }; 
+uint8_t axesPins[] = { 20, 21,  18, 19 }; 
+~~~
+
+### Poll time output:
+
+If necessary you can reconfigure the main LED with ```MAIN_LED_PIN```.
+
+You can also directly output the USB polling to a pin (this is disabled by default):
+~~~c++
+//#define USB_POLL_OUT_PIN  14
+~~~
+If you do so the pin is toggled each time the host does an USB poll. I.e. when connecting an oscilloscope you can directly see the polling rate.
+
+
+### Debouncing:
+Debouncing or "minimum press time" can be configured via
+~~~c++
+uint16_t MIN_PRESS_TIME = 25;
+~~~
+
+### Misc:
+ANALOG_AXES_ENABLED should always be 0. This is not implemented.
 
