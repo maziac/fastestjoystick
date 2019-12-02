@@ -47,7 +47,7 @@ uint16_t MIN_PRESS_TIME = 25;
 
 
 // The SW version.
-#define SW_VERSION "1.0"
+#define SW_VERSION "1.1"
 
 
 // ASSERT macro
@@ -102,7 +102,7 @@ void loop() {
     // Prepare USB packet (note: this should immediately return as the packet queue is empty at this point.
     usb_joystick_send();
 
-    // Wait on poll at max. double the poll time, then check for serial input.
+    // Wait on poll at max. double the poll time.
     clearTimer(2000 * JOYSTICK_INTERVAL);
     
     // Wait on USB poll

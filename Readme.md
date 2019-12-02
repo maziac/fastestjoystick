@@ -1,7 +1,7 @@
-# Fastest Joystick
+# (Almost) Fastest Joystick
 
 The idea to write the firmware for an USB controller raised in me when doing the USB controller measurements in 
-[LagMeter](../LagMeter/Readme.md).
+[LagMeter](https://github.com/maziac/lagmeter).
 It is quite invisible what a usual game controller does when sampling the buttons and the axis data and what delay it might add.
 The only information one gets is the suggested polling rate that the game controller requests from the USB host.
 But this is only part of the story: the firmware of the game controller need to sample the joystick data and prepare it in time, i.e. within this polling interval.
@@ -22,6 +22,13 @@ For comparison:
 A typical game controller often has a poll time of 8ms. This in itself leads to a reaction time of 8 to 16ms. Sometimes the controller itself has another delay that needs to be added. So this not only jitters a lot, it is already quite close to 1 frame delay.
 Even faster game controller with 1ms poll time introduce an inherent delay of about 5ms.
 
+**Important note:** There is somewhere an additional delay of 1 poll interval in the Teensy USB implementation.
+This means the fast response time of 1.2ms cannot be achieved in reality.
+Instead 1 poll interval has to be added which results in 2.2ms response time. This is still a good value but unfortunately not the best :-(
+E.g. XBox controller can achieve 1-2ms response times.
+
+With the [LagMeter](https://github.com/maziac/lagmeter) (which offers an accuray of 1ms) I could verify a response time of 2-3ms:
+![](Images/LagMeter_FastestJoystick.jpg)
 
 # HW
 
