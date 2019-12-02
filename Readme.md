@@ -10,9 +10,9 @@ So the only way to get absolute control on what is happening on the firmware sid
 
 This project is about the firmware of a USB controller. It's not about the HW. So, if you would want to do this on your own you can use an Arcade stick or buttons or use the HW of an existing USB game controller, throw it's electronics away and substitute it with a Teensy board and this SW.
 
-**The goal of this project is to create the fastest USB game controller firmware available with a guaranteed reaction time.** 
+**The goal of this project was to create the fastest USB game controller firmware available with a guaranteed reaction time.** 
 
-The features are:
+The goals were:
 - Requested 1ms USB poll time
 - Additional delay of max. 200us.
 - I.e. in total this is a reaction time in the range of 0.2ms to 1.2ms.
@@ -22,13 +22,15 @@ For comparison:
 A typical game controller often has a poll time of 8ms. This in itself leads to a reaction time of 8 to 16ms. Sometimes the controller itself has another delay that needs to be added. So this not only jitters a lot, it is already quite close to 1 frame delay.
 Even faster game controller with 1ms poll time introduce an inherent delay of about 5ms.
 
-**Important note:** There is somewhere an additional delay of 1 poll interval in the Teensy USB implementation.
-This means the fast response time of 1.2ms cannot be achieved in reality.
-Instead 1 poll interval has to be added which results in 2.2ms response time. This is still a good value but unfortunately not the best :-(
-E.g. XBox controller can achieve 1-2ms response times.
 
-With the [LagMeter](https://github.com/maziac/lagmeter) (which offers an accuray of 1ms) I could verify a response time of 2-3ms:
+**Goal not met:** 
+I couldn't achieve the theoretical response time of 1.2ms in reality. There is somewhere an additional delay of 1 poll interval in the Teensy USB implementation.
+So we  end up at 2.2ms response time. This is still a good value but unfortunately not the best :-(
+E.g. an XBox controller can achieve 1-2ms response times.
+
+With the [LagMeter](https://github.com/maziac/lagmeter) (which offers an accuray of 1ms) I could verify the response time of 2-3ms:
 ![](Images/LagMeter_FastestJoystick.jpg)
+
 
 # HW
 
