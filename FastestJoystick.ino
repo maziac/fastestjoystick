@@ -41,7 +41,7 @@ uint8_t axesPins[] = { 20, 21,  18, 19 }; // Digital input.
 
 
 // The debounce and minimal press- and release time of a button (in ms).
-uint16_t MIN_PRESS_TIME = 25;
+uint16_t MIN_PRESS_TIME = 1;
 
 // *** CONFIGURATION END **************************************************
 
