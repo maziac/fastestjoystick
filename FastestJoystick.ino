@@ -18,7 +18,8 @@ The features are:
 // Axis down/up: Pin 20/21 AL/AR
 
 // The buttons permutation table. Logical button ins [0;12] are mapped to physical pins.
-uint8_t buttonPins[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 }; // Normal configuration (Buffalo)
+//uint8_t buttonPins[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 }; // Normal configuration (Buffalo)
+uint8_t buttonPins[] = { 0, 1, 2, 10, 11, 5, 6, 7, 8, 9, 3, 4 }; // Normal configuration (Buffalo)
 //uint8_t buttonPins[] = { /*Button0*/ 12, /*Button1*/11, /*Button2*/9, /*Unused*/1, /*Start1*/6, /*Start2*/3, /*Orientation*/0, /*Others unused*/ };
 
 // The axes permutation table. Logical axes ins [0;12] are mapped to physical pins.
