@@ -13,23 +13,28 @@ The features are:
 
 
 // *** CONFIGURATION BEGIN ************************************************
-// Button 0-6 = Pin 12, 11, 9, unused, 6, 3, 0  (at max 0-12 input buttons are possible)
-// Axis left/right: Pin 18/19 AU/AD
-// Axis down/up: Pin 20/21 AL/AR
-
+/*
+ * Cocktail Table:
+ * 
+ * Pins:
+ * J1: L=4,R=3,U=6,D=5,B1=7,B2=8,B3=9
+ * J2: L=20,R=21,U=18,D=19,B1=0,B2=1,B3=2
+ * S1=10, S2=11
+ * 
+ * Button mapping:
+ * J1: L=Axis1L,R=Axis1H,U=Axis2L,D=Axis2H,B1=Button1,B2=Button2,B3=Button3
+ * J2: L=Button4,R=Button5,U=Button6,D=Button7,B1=Button8,B2=Button9,B3=Button10
+ * S1=Button11, S2=Button12
+ */
 // The buttons permutation table. Logical button ins [0;12] are mapped to physical pins.
-//uint8_t buttonPins[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 }; // Normal configuration (Buffalo)
-uint8_t buttonPins[] = { 0, 1, 2, 10, 11, 5, 6, 7, 8, 9, 3, 4 }; // Normal configuration (Buffalo)
-//uint8_t buttonPins[] = { /*Button0*/ 12, /*Button1*/11, /*Button2*/9, /*Unused*/1, /*Start1*/6, /*Start2*/3, /*Orientation*/0, /*Others unused*/ };
+uint8_t buttonPins[] = { 7, 8, 9, 20, 21, 18, 19, 0, 1, 2, 10, 11 }; // Cocktail table
 
 // The axes permutation table. Logical axes ins [0;12] are mapped to physical pins.
 // For digital input 2 entries form a pair, e.g. left/right or up/down.
 // If you choose only 2 input ins then analog in is assumed. If you choose 4 then digital input is assumed.
 // For analog input the first entry is left/right, the second is up/down.
 #define ANALOG_AXES_ENABLED  0            // Digital input.
-uint8_t axesPins[] = { 20, 21,  18, 19 }; // Digital input.
-//#define ANALOG_AXES_ENABLED  1      // Analog input.
-//uint8_t axesPins[] = { 20, 21 };    // Analog input.
+uint8_t axesPins[] = { 4, 3,  5, 6 }; // Digital input. Cocktail table.
 
 
 // Turn main LED on/off (Note: the built-in LED is pin 13).
