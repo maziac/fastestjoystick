@@ -1,6 +1,6 @@
 # (Almost) Fastest Joystick
 
-The idea to write the firmware for an USB controller raised in me when doing the USB controller measurements in 
+The idea to write the firmware for an USB controller raised in me when doing the USB controller measurements in
 [LagMeter](https://github.com/maziac/lagmeter).
 It is quite invisible what a usual game controller does when sampling the buttons and the axis data and what delay it might add.
 The only information one gets is the suggested polling rate that the game controller requests from the USB host.
@@ -10,7 +10,7 @@ So the only way to get absolute control on what is happening on the firmware sid
 
 This project is about the firmware of a USB controller. It's not about the HW. So, if you would want to do this on your own you can use an Arcade stick or buttons or use the HW of an existing USB game controller, throw it's electronics away and substitute it with a Teensy board and this SW.
 
-**The goal of this project was to create the fastest USB game controller firmware available with a guaranteed reaction time.** 
+**The goal of this project was to create the fastest USB game controller firmware available with a guaranteed reaction time.**
 
 The goals were:
 - Requested 1ms USB poll time
@@ -23,13 +23,22 @@ A typical game controller often has a poll time of 8ms. This in itself leads to 
 Even faster game controller with 1ms poll time introduce an inherent delay of about 5ms.
 
 
-**Goal not met:** 
+**Goal not met:**
 I couldn't achieve the theoretical response time of 1.2ms in reality. There is somewhere an additional delay of 1 poll interval in the Teensy USB implementation.
 So we  end up at 2.2ms response time. This is still a good value but unfortunately not the best :-(
 E.g. an XBox controller can achieve 1-2ms response times.
 
 With the [LagMeter](https://github.com/maziac/lagmeter) (which offers an accuray of 1ms) I could verify the response time of 2-3ms:
 ![](Images/LagMeter_FastestJoystick.jpg)
+
+
+**But the winner is:**
+
+Here is a link to a similar project but for the Arduino Pro Micro (ATMega32U4).
+The SW is also much simpler. It seems that the ATMega32U4 does not suffer from 1 poll delay.
+So it is really possible to achieve 1 ms response times.
+
+Here is the link to the github project: [DaemonBite-Arcade-Encoder](https://github.com/MickGyver/DaemonBite-Arcade-Encoder)
 
 
 # HW
@@ -155,7 +164,7 @@ So the SW makes sure that always only 1 packet is used. I.e. the packet is immed
 
 You hopefully never see an error. The errors here are created by program ASSERTs. I.e. they are helpful during debugging but should not occur under normal conditions.
 
-When an error occurs the main LED starts blinking fast. 
+When an error occurs the main LED starts blinking fast.
 
 From that point on the joystick is not reporting any axes information or button presses anymore until you re-connect it to USB.
 
@@ -259,8 +268,8 @@ Press some attached buttons or just short-circuit and input to ground and you se
 The button pins and the axes pins can be configured.
 This is done in the configuration section in FastestJoystick.ino via the arrays
 ~~~c++
-uint8_t buttonPins[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12 }; 
-uint8_t axesPins[] = { 20, 21,  18, 19 }; 
+uint8_t buttonPins[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12 };
+uint8_t axesPins[] = { 20, 21,  18, 19 };
 ~~~
 
 ### Poll time output:
