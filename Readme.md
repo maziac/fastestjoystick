@@ -28,7 +28,7 @@ I couldn't achieve the theoretical response time of 1.2ms in reality. There is s
 So we  end up at 2.2ms response time. This is still a good value but unfortunately not the best :-(
 E.g. an XBox controller can achieve 1-2ms response times.
 
-With the [LagMeter](https://github.com/maziac/lagmeter) (which offers an accuray of 1ms) I could verify the response time of 2-3ms:
+With the [LagMeter](https://github.com/maziac/lagmeter) (which offers an accuracy of 1ms) I could verify the response time of 2-3ms:
 ![](Images/LagMeter_FastestJoystick.jpg)
 
 
